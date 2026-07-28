@@ -1,0 +1,26 @@
+{
+  "summary": "First-finish smoke test of Company/OS multi-tenant chatbot. Backend RBAC + LLM chat + cache verified via curl; frontend end-to-end verified via Playwright for both agent (Alice) and super_admin roles.",
+  "tested_scope": ["backend", "frontend", "auth", "integration"],
+  "passed": [
+    "Landing page loads with Sign in / Get access CTAs",
+    "POST /api/auth/login for admin@acme.demo & alice@acme.demo returns JWT",
+    "RBAC backend: admin GET /api/tasks returns 5 tasks (task-01..05); Alice returns only 3 (task-01,02,03) all assigned_to=user-agent-1",
+    "RBAC backend: Alice GET /api/leads returns 3 leads (lead-01,02,03), no lead-04/05",
+    "POST /api/chat as Alice returns answer citing Northwind (task-01/lead-01), does NOT mention Adventure Works (Bob's). tokens_in=484, tokens_out=146",
+    "Chat cache: identical prompt returns cache_hit=true on 2nd call for same user",
+    "GET /api/context (admin) returns 3 seeded docs (Product Ideology, Escalation Rules, Customer-First Playbook)",
+    "GET /api/users (admin) returns 3 users (admin, alice, bob)",
+    "GET /api/analytics/overview returns total_messages, cache_hits, cache_hit_rate, per_user, top_prompts, time_series",
+    "Frontend login flow works for Alice and admin; redirects to /app",
+    "Sidebar RBAC: Alice sees NO nav-users/context/crm/analytics/settings; admin sees ALL five",
+    "Chat widget on /app: opens via chat-widget-toggle, sends via chat-send, response renders with Northwind (Alice's data), no Adventure Works leak",
+    "Admin /app/users shows 3 user rows; /app/context shows 3 doc entries; /app/analytics renders an-total, bar chart (Tokens by user), line chart (Query volume 14d), Top prompts table populated",
+    "Logout clears session and redirects to /login"
+  ],
+  "failed": [],
+  "action_items": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "retest_needed": false,
+  "full_testing_deferred": true,
+  "notes": "Chat API response field is 'answer' (not 'response') — frontend correctly consumes this. Untested (deferred to full QA): registering a brand-new tenant via /register, block/unblock user PATCH, context doc create+save UI, settings-save as super_admin, task-done toggle, /app/crm tab-leads/tab-tasks rendering. All these have data-testids in place and backend endpoints are healthy, so likely pass — flagged for exhaustive pass."
+}

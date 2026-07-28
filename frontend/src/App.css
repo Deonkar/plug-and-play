@@ -1,34 +1,87 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+.App { min-height: 100vh; }
+
+.btn-primary {
+  background: hsl(15 100% 50%);
+  color: white;
+  padding: 0.65rem 1.15rem;
+  font-weight: 600;
+  border: 1px solid hsl(15 100% 50%);
+  transition: transform 120ms ease, background-color 120ms ease;
+  font-family: 'IBM Plex Sans', sans-serif;
+  letter-spacing: 0.01em;
+}
+.btn-primary:hover { background: hsl(15 100% 45%); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-ghost {
+  background: transparent;
+  color: hsl(0 0% 98%);
+  padding: 0.55rem 1rem;
+  font-weight: 500;
+  border: 1px solid hsl(0 0% 20%);
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.btn-ghost:hover { border-color: hsl(15 100% 50%); background: hsl(0 0% 8%); }
+
+.card-tech {
+  background: hsl(0 0% 6%);
+  border: 1px solid hsl(0 0% 14%);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+.input-tech {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  background: hsl(0 0% 8%);
+  color: hsl(0 0% 98%);
+  border: 1px solid hsl(0 0% 18%);
+  outline: none;
+  transition: border-color 120ms ease;
+  font-family: inherit;
+}
+.input-tech:focus { border-color: hsl(15 100% 50%); box-shadow: 0 0 0 1px hsl(15 100% 50% / 0.6); }
+
+.table-tech { width: 100%; border-collapse: collapse; }
+.table-tech th, .table-tech td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid hsl(0 0% 12%);
+  text-align: left;
+  font-size: 0.875rem;
+}
+.table-tech th { color: hsl(0 0% 63%); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.08em; font-weight: 500; }
+.table-tech tr:hover td { background: hsl(0 0% 7%); }
+
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid hsl(0 0% 20%);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: 'JetBrains Mono', monospace;
+}
+.badge-urgent { border-color: hsl(15 100% 50%); color: hsl(15 100% 55%); }
+.badge-high { border-color: hsl(30 90% 55%); color: hsl(30 90% 60%); }
+.badge-medium { border-color: hsl(0 0% 45%); color: hsl(0 0% 70%); }
+.badge-low { border-color: hsl(0 0% 25%); color: hsl(0 0% 50%); }
+.badge-done { border-color: hsl(140 60% 45%); color: hsl(140 60% 55%); }
+
+/* Chat widget */
+.chat-glass {
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.08);
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+/* Sidebar active */
+.side-item {
+  display: flex; align-items: center; gap: 0.65rem;
+  padding: 0.55rem 1rem;
+  color: hsl(0 0% 63%);
+  border-left: 2px solid transparent;
+  transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
+  font-size: 0.9rem;
 }
-
-.App-link {
-    color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
-}
+.side-item:hover { color: hsl(0 0% 98%); background: hsl(0 0% 7%); }
+.side-item.active { color: hsl(0 0% 98%); border-left-color: hsl(15 100% 50%); background: hsl(0 0% 7%); }
