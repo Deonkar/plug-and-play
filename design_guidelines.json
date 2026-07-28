@@ -1,0 +1,108 @@
+{
+  "project_context": "Multi-tenant SaaS 'Company OS' platform with an embeddable Chatbot Widget, Admin Dashboard, Marketing Landing Page, and Auth flows.",
+  "theme": "dark_mode_primary",
+  "typography": {
+    "headings": {
+      "font_family": "'Cabinet Grotesk', sans-serif",
+      "import_url": "https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,500,700,400,900&display=swap",
+      "strategy": "High impact, tight letter spacing (tracking-tight), never use Inter for headings."
+    },
+    "body": {
+      "font_family": "'IBM Plex Sans', sans-serif",
+      "import_url": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&display=swap",
+      "strategy": "Highly legible, crisp reading for CRM and dashboard data."
+    },
+    "monospace": {
+      "font_family": "'JetBrains Mono', monospace",
+      "import_url": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap",
+      "strategy": "Used for code blocks, prompt templates, API keys, token usage data."
+    }
+  },
+  "colors": {
+    "archetype": "Swiss & High-Contrast (Authority, Clarity, Truth)",
+    "description": "Obsidian base, deep grey surfaces, off-white text, Signal Orange accent. Completely avoiding generic purple gradients.",
+    "tailwind_vars_dark": {
+      "--background": "0 0% 4%",
+      "--foreground": "0 0% 98%",
+      "--card": "0 0% 6%",
+      "--card-foreground": "0 0% 98%",
+      "--popover": "0 0% 6%",
+      "--popover-foreground": "0 0% 98%",
+      "--primary": "15 100% 50%",
+      "--primary-foreground": "0 0% 98%",
+      "--secondary": "0 0% 12%",
+      "--secondary-foreground": "0 0% 98%",
+      "--muted": "0 0% 12%",
+      "--muted-foreground": "0 0% 63%",
+      "--accent": "0 0% 12%",
+      "--accent-foreground": "0 0% 98%",
+      "--destructive": "0 62.8% 30.6%",
+      "--destructive-foreground": "0 0% 98%",
+      "--border": "0 0% 12%",
+      "--input": "0 0% 12%",
+      "--ring": "15 100% 50%",
+      "--radius": "0rem"
+    }
+  },
+  "surfaces_and_micro_themes": {
+    "dashboard": "The 'Technical' Look - Grid Borders. Flat backgrounds, 1px subtle borders (border-border), no rounded corners (radius: 0), no drop shadows. Strictly functional. Use border-collapse style layouts.",
+    "chatbot_widget": "Glassmorphism (The 'Crystal' Variant) - Deep black glass. bg-black/60, backdrop-blur-2xl, border-white/10, subtle drop shadow. Should feel like a native floating command palette (Cursor/Linear style).",
+    "marketing_page": "High density, large typography, noisy textures. Use full bleed sections, overlapping bento boxes, large asymmetrical grids.",
+    "forms_and_inputs": "Solid dark inputs with stark 1px borders. On focus: border-primary ring-1 ring-primary."
+  },
+  "layouts": {
+    "spacing_strategy": "Generous Spacing Philosophy. Use p-8, p-12, p-16 for containers. Dashboard should be high-density (gap-4, p-4) while Marketing should be spacious.",
+    "dashboard_grid": "High Density Grid for CRM and Analytics. Strict grid hierarchy, dense and compact. Sidebar + main content layout. Full width tables.",
+    "marketing_grid": "The 'Tetris' Grid for features. Asymmetrical layout. Never perfectly symmetrical. Wide gaps (gap-8, gap-12)."
+  },
+  "motion_and_interactions": {
+    "hover_states": "Interactive elements must transition cleanly (transition-transform transition-colors). Cards lift slightly (-translate-y-1).",
+    "chatbot_streaming": "Markdown response streaming should feel mechanical and instant.",
+    "accessibility": "Always respect prefers-reduced-motion. High contrast focus rings."
+  },
+  "components_strategy": {
+    "buttons": "Sharp edges (rounded-none), solid primary color, or subtle outline. High contrast text.",
+    "tables": "Shadcn Table with dense padding, subtle borders between rows. Monospaced IDs or Dates.",
+    "charts": "Shadcn/Recharts. Use Signal Orange and Monochromatic greys for lines/bars. No colorful gradients. Tech/Data art feel.",
+    "cards": "Cardless style where possible, or rectangular dense cards with sharp edges and 1px borders.",
+    "modals": "Backdrop blur overlay, sharp borders.",
+    "sidebar": "Fixed left navigation, dark monochrome, active state with 1px left border in primary color."
+  },
+  "libraries": {
+    "icons": "lucide-react (default), prefer technical/sharp icons.",
+    "3d_or_visual": "Framer Motion for layout animations and widget toggle. Add a subtle CSS noise background overlay for the marketing page."
+  },
+  "image_urls": {
+    "marketing_hero_bg": {
+      "url": "https://images.pexels.com/photos/12198534/pexels-photo-12198534.jpeg",
+      "description": "Abstract minimalism with dark circular geometric shapes. Use as a darkened, low-opacity background for the hero section.",
+      "category": "background"
+    },
+    "testimonials_team": {
+      "url": "https://images.unsplash.com/photo-1573164574572-cb89e39749b4",
+      "description": "Corporate team looking at laptops. Use for 'built for teams' or about section.",
+      "category": "team"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Inject the font import URLs into index.css or index.html.",
+    "Update tailwind.config.js to set radius to 0 (or '0rem') for a sharp, technical aesthetic.",
+    "Implement a strict dark mode theme in index.css as per the provided tailwind_vars_dark. Add 'dark' class to html/body if necessary to enforce.",
+    "Build the dashboard layout with a sticky left sidebar and a top header. Ensure the header is solid or blurred, NEVER fully transparent.",
+    "Marketing page must use the 'Tetris' grid layout with asymmetrical feature boxes.",
+    "Chatbot Widget must float at bottom-right, fixed, z-50, using Glassmorphism styling (bg-black/60, backdrop-blur-xl).",
+    "Admin Dashboard views must include: 1) CRM (Leads/Tasks table), 2) Analytics (Token usage charts), 3) Context/Docs (Upload & list .md files), 4) Settings (API keys) and Users Management.",
+    "All interactive elements MUST have data-testid attributes (e.g. data-testid='chat-widget-toggle').",
+    "DO NOT add generic universal transitions (e.g., transition: all). Add specific transitions for transform, colors, etc.",
+    "DO NOT center align the app container text.",
+    "Use 'sonner' for toast notifications (import from shadcn UI)."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "Avoid generic 'AI slop' aesthetic. DO NOT use generic centered layouts or simplistic gradients.",
+    "DO NOT use emojis as icons. Use Lucide icons exclusively.",
+    "Create depth through layered design elements and z-index hierarchy. Use glassmorphism where appropriate.",
+    "Always apply hover states, focus states, and specific transitions. Static is dead.",
+    "Use 2-3x more spacing than feels comfortable for marketing, but use high-density for the CRM/Dashboard.",
+    "Add 'data-testid' to all buttons, links, inputs, and key informational elements."
+  ]
+}
