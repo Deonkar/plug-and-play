@@ -120,6 +120,16 @@ class WaitlistIn(BaseModel):
     email: EmailStr
 
 
+class ServicesEstimateIn(BaseModel):
+    email: EmailStr
+    note: Optional[str] = ""
+    services: List[str] = []
+
+
+class ServicesIn(BaseModel):
+    services: List[str] = []
+
+
 class IngestFile(BaseModel):
     path: str
     content: str
@@ -976,6 +986,49 @@ async def join_waitlist(inp: WaitlistIn):
         upsert=True,
     )
     return {"ok": True}
+
+
+@api.post("/public/services-estimate")
+async def services_estimate(inp: ServicesEstimateIn):
+    doc = {
+        "id": str(uuid.uuid4()),
+        "email": inp.email.lower(),
+        "note": inp.note or "",
+        "services": inp.services,
+        "created_at": now_iso(),
+    }
+    await db.services_estimates.insert_one(doc)
+    return {"ok": True}
+
+
+@api.get("/services/mine")
+async def get_services(user=Depends(current_user)):
+    c = await db.companies.find_one({"id": user["company_id"]}, {"_id": 0})
+    return {"services": (c or {}).get("services", [])}
+
+
+@api.put("/services/mine")
+async def set_services(inp: ServicesIn, user=Depends(require_role("super_admin", "admin"))):
+    await db.companies.update_one(
+        {"id": user["company_id"]},
+        {"$set": {"services": inp.services, "services_updated_at": now_iso()}},
+    )
+    return {"ok": True}
+
+
+@api.post("/services/checkout")
+async def services_checkout(inp: ServicesIn, user=Depends(require_role("super_admin"))):
+    """Records the intended service order. Real Stripe integration is pending."""
+    order = {
+        "id": str(uuid.uuid4()),
+        "company_id": user["company_id"],
+        "user_id": user["id"],
+        "services": inp.services,
+        "status": "pending_payment",
+        "created_at": now_iso(),
+    }
+    await db.service_orders.insert_one(order)
+    return {"ok": True, "order_id": order["id"], "status": "pending_payment"}
 
 
 @api.get("/admin/contact")

@@ -168,3 +168,19 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 - ✅ **Scroll-reveal animations** across Landing (numbers, pillars, demos, closer, "One line one idea") — `framer-motion.whileInView` fade-slide-up with `viewport={{ once: true, margin: '-100px' }}` and staggered delays
 - ✅ **"Register now" → `/pricing`** (waitlist gate) — CTAs no longer expose the /register flow directly; nav "Get access" still points to /register for direct access
 - ✅ **Pricing add-on services** — new "Add just what you need" section on `/pricing` with 8 selectable services (Extra seats · BYO LLM key · Slack alerts · SSO/SCIM · Priority onboarding · White-label · Custom retention · Advanced audit log); each with monthly price + description. Selection state highlights in orange, counter shows "N add-ons selected", Clear-all button. Localstate for now — will sync to backend once payments are wired.
+
+## Update — Session 12 (Jan 2026) — Add-on Services flow (public + admin)
+### Backend
+- `POST /api/public/services-estimate` — public estimate request (email + note + services[]) → stored in `services_estimates`
+- `GET /api/services/mine` — returns current company's services
+- `PUT /api/services/mine` — admin updates services (list of add-on keys) on company doc
+- `POST /api/services/checkout` — super_admin records a pending payment order in `service_orders`
+
+### Frontend
+- Extracted shared `AddOnPicker` component (8 services: seats, byok, slack, sso, priority, whitelabel, retention, audit) with live monthly + one-time totals
+- New public `/services` page — hero, full-page picker, "Estimate will be sent soon" form with email + note (POST to /public/services-estimate), "Already a customer?" CTA linking to `/login?next=/app/services`
+- Marketing nav adds **Services** link
+- Admin sidebar adds **Services** link (Package icon) between Analytics and Settings
+- New `/app/services` page — picker + sticky total bar (Monthly $ · One-time $ · N selected) + Save picks / Proceed to payment
+- New `/app/services/checkout` page — line-item review, monthly total, Stripe-placeholder Confirm-order flow; success shows "Order recorded" and redirects back
+- Verified end-to-end via curl: estimate saved, PUT/GET services persist, POST checkout returns `order_id + status='pending_payment'`

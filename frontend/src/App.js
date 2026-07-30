@@ -20,6 +20,9 @@ import ApiDocs from "./pages/marketing/ApiDocs";
 import About from "./pages/marketing/About";
 import Contact from "./pages/marketing/Contact";
 import Pricing from "./pages/marketing/Pricing";
+import Services from "./pages/marketing/Services";
+import AppServices from "./pages/Services";
+import ServicesCheckout from "./pages/ServicesCheckout";
 
 function Protected({ children, adminOnly }) {
   const { user, loading } = useAuth();
@@ -45,6 +48,7 @@ function App() {
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/pricing" element={<Pricing />} />
+              <Route path="/services" element={<Services />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/app" element={<Protected><AppShell/></Protected>}>
@@ -55,6 +59,8 @@ function App() {
                 <Route path="crm" element={<Protected adminOnly><CRM /></Protected>} />
                 <Route path="analytics" element={<Protected adminOnly><Analytics /></Protected>} />
                 <Route path="settings" element={<Protected adminOnly><Settings /></Protected>} />
+                <Route path="services" element={<Protected adminOnly><AppServices /></Protected>} />
+                <Route path="services/checkout" element={<Protected adminOnly><ServicesCheckout /></Protected>} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace/>} />
             </Routes>

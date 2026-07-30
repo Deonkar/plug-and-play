@@ -10,6 +10,7 @@ const NAV_MAIN = [
   { to: "/how", label: "How" },
   { to: "/stack", label: "Tech Stack" },
   { to: "/pricing", label: "Pricing" },
+  { to: "/services", label: "Services" },
 ];
 const NAV_MORE = [
   { to: "/about", label: "About" },
