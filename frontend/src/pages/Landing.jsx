@@ -5,6 +5,8 @@ import {
   GitBranch, Database, Lock, Slack, FileCode, Users2, Activity, Puzzle,
 } from "lucide-react";
 import CursorGlow from "../components/CursorGlow";
+import CRMDemo from "../components/demo/CRMDemo";
+import AdminDemo from "../components/demo/AdminDemo";
 
 export default function Landing() {
   return (
@@ -23,6 +25,7 @@ export default function Landing() {
         </Link>
         <div className="hidden md:flex items-center gap-8 font-mono text-xs uppercase tracking-widest text-muted-foreground">
           <a href="#how" className="hover:text-white transition-colors">How</a>
+          <a href="#demo" className="hover:text-white transition-colors">Demo</a>
           <a href="#use-cases" className="hover:text-white transition-colors">Use cases</a>
           <a href="#stack" className="hover:text-white transition-colors">Stack</a>
           <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
@@ -133,6 +136,43 @@ export default function Landing() {
               Your team sees a floating chat in their CRM. Each agent gets answers scoped to <em>their</em>
               leads &amp; tasks. Admins get the analytics.
             </StepBox>
+          </div>
+        </div>
+      </section>
+
+      {/* LIVE DEMOS */}
+      <section id="demo" className="relative z-10 px-6 md:px-16 py-24 border-b border-border">
+        <div className="mb-10 max-w-3xl">
+          <div className="font-mono text-xs uppercase text-primary tracking-widest mb-3">/// see it running</div>
+          <h2 className="font-display font-black text-4xl md:text-5xl leading-tight">
+            What it looks like<br /><span className="text-primary">on the ground.</span>
+          </h2>
+          <p className="text-muted-foreground mt-4 max-w-2xl">
+            Two live, self-playing reels. Left: how the widget behaves inside a real CRM. Right: what
+            admins see when they open the console. No sign-up needed.
+          </p>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-6">
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-1 h-6 bg-primary" />
+              <div>
+                <div className="font-display font-bold">Inside a CRM</div>
+                <div className="font-mono text-[11px] text-muted-foreground">Agent view · widget floats in bottom-right</div>
+              </div>
+            </div>
+            <CRMDemo />
+          </div>
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-1 h-6 bg-primary" />
+              <div>
+                <div className="font-display font-bold">Admin console</div>
+                <div className="font-mono text-[11px] text-muted-foreground">Analytics · Users · Context — auto-cycling</div>
+              </div>
+            </div>
+            <AdminDemo />
           </div>
         </div>
       </section>

@@ -81,3 +81,10 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 - ✅ **Backend `/api/voice/transcribe`** — Whisper-1 via `OpenAISpeechToText` from emergentintegrations; 25MB cap; JWT-protected
 - ✅ Live "Recording... tap mic to stop" status with pulsing red dot; "Transcribing..." indicator; graceful mic-permission errors
 - ✅ Footer updated to "Claude Sonnet 4.6 · Whisper"
+
+## Update — Session 5 (Jan 2026) — Live Landing Demos
+- ✅ **CRMDemo** component — self-playing animated reel showing a fake CRM (leads table with 5 rows) + chat widget bubble → widget opens → user question typewriter → assistant markdown reveal line-by-line → loops every ~12s
+- ✅ **AdminDemo** component — fake admin console with sidebar + auto-cycling tabs (Analytics with animated token bars → Users with block/unblock rows → Context with drop-zone + doc cards)
+- ✅ **BrowserFrame** reusable component (traffic lights + URL bar + live indicator)
+- ✅ Added "Demo" nav link and a "See it running" landing section between How-it-works and the bento grid
+- Pure CSS/Framer Motion (no video files), zero bandwidth cost
