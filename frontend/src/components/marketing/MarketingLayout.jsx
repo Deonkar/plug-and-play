@@ -42,7 +42,7 @@ export default function MarketingLayout({ children, hideCursorGlow = false }) {
         <div className="hidden md:flex items-center gap-2">
           <ThemeToggle />
           <Link to="/login" data-testid="nav-login" className="btn-ghost text-sm">Sign in</Link>
-          <Link to="/register" data-testid="nav-signup" className="btn-primary text-sm">Register now</Link>
+          <Link to="/register" data-testid="nav-signup" className="btn-primary text-sm">Get access</Link>
         </div>
         <div className="flex items-center gap-2 md:hidden">
           <ThemeToggle />

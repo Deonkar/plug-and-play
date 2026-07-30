@@ -259,7 +259,7 @@ export default function CRMDemo() {
             >
               {active && <motion.div layoutId="crm-step-marker" className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />}
               <div className={`font-mono text-[10px] uppercase tracking-widest mb-1.5 ${active ? "text-primary" : "text-muted-foreground"}`}>{s.title}</div>
-              <div className={`text-sm leading-relaxed ${active ? "text-white" : "text-muted-foreground"}`}>{s.body}</div>
+              <div className={`text-sm leading-relaxed ${active ? "text-foreground" : "text-muted-foreground"}`}>{s.body}</div>
             </motion.div>
           );
         })}

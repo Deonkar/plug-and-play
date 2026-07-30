@@ -23,7 +23,7 @@ export default function BrowserFrame({ url = "crm.acme.com", children, className
           live
         </div>
       </div>
-      <div className="relative">{children}</div>
+      <div className="relative demo-dark">{children}</div>
     </div>
   );
 }

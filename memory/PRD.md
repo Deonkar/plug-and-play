@@ -159,3 +159,12 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 
 ### New "hero video"
 - ✅ **HeroDemo** component replaces the static terminal on the landing hero — a self-playing looping animation of a fake SalesHub CRM (blue/white light theme) with the Company/OS chat plug-in bubbling in, receiving a user question that types out character-by-character, then streaming an assistant answer that references `task-01` / `Northwind Traders`. Loops every ~11 seconds. PLUG-IN READY tag pinned top-right.
+
+## Update — Session 11 (Jan 2026) — Demo section respects theme + Pricing add-ons + Scroll reveals
+### Fixed
+- ✅ **Demo section respects light mode** — removed `.demo-dark` from the outer `<section id="demo">`; wrapped only the `BrowserFrame` internals in `.demo-dark` so the browser mocks stay dark while the surrounding section (headings, narration columns) inherit the site theme. Narration text switched from `text-white` → `text-foreground` for readability in light mode.
+
+### Added
+- ✅ **Scroll-reveal animations** across Landing (numbers, pillars, demos, closer, "One line one idea") — `framer-motion.whileInView` fade-slide-up with `viewport={{ once: true, margin: '-100px' }}` and staggered delays
+- ✅ **"Register now" → `/pricing`** (waitlist gate) — CTAs no longer expose the /register flow directly; nav "Get access" still points to /register for direct access
+- ✅ **Pricing add-on services** — new "Add just what you need" section on `/pricing` with 8 selectable services (Extra seats · BYO LLM key · Slack alerts · SSO/SCIM · Priority onboarding · White-label · Custom retention · Advanced audit log); each with monthly price + description. Selection state highlights in orange, counter shows "N add-ons selected", Clear-all button. Localstate for now — will sync to backend once payments are wired.

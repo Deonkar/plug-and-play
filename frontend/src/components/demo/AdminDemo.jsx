@@ -71,7 +71,7 @@ export default function AdminDemo() {
                 <div className={`font-mono text-[10px] uppercase tracking-widest ${isActive ? "text-primary" : "text-muted-foreground"}`}
                   dangerouslySetInnerHTML={{__html: `0${i+1} — ${s.label}`}} />
               </div>
-              <div className={`text-sm leading-relaxed ${isActive ? "text-white" : "text-muted-foreground"}`}>{s.caption}</div>
+              <div className={`text-sm leading-relaxed ${isActive ? "text-foreground" : "text-muted-foreground"}`}>{s.caption}</div>
             </motion.div>
           );
         })}

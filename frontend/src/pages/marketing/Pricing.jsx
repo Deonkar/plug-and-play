@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Clock, Sparkles } from "lucide-react";
+import { Check, Clock, Sparkles, Plus, Minus } from "lucide-react";
 import MarketingLayout from "../../components/marketing/MarketingLayout";
 import api from "../../lib/api";
 
@@ -91,6 +91,81 @@ export default function Pricing() {
           ))}
         </div>
       </section>
+
+      {/* Add-on services */}
+      <AddOnServices />
     </MarketingLayout>
+  );
+}
+
+const ADDONS = [
+  { key: "seats", name: "Extra agent seats", desc: "Add more agents beyond your tier limit.", pricing: "$5 / seat / mo" },
+  { key: "byok", name: "Bring-your-own LLM key", desc: "Use your own OpenAI/Anthropic/Gemini key — pay providers directly.", pricing: "Free" },
+  { key: "slack", name: "Slack escalation alerts", desc: "Per-tenant webhook for escalations + quota alerts.", pricing: "$10 / mo" },
+  { key: "sso", name: "SSO / SCIM", desc: "Google Workspace / Okta / Azure AD sign-in + auto-provisioning.", pricing: "$80 / mo" },
+  { key: "priority", name: "Priority onboarding", desc: "White-glove context ingestion + custom .md templates for your team.", pricing: "$500 one-time" },
+  { key: "whitelabel", name: "White-label branding", desc: "Your logo, your colors on the widget & console.", pricing: "$120 / mo" },
+  { key: "retention", name: "Custom retention policy", desc: "Choose how long chat logs and prompt cache live for compliance.", pricing: "$40 / mo" },
+  { key: "audit", name: "Advanced audit log", desc: "Immutable log of every admin action + agent query, exportable.", pricing: "$60 / mo" },
+];
+
+function AddOnServices() {
+  const [picked, setPicked] = useState(new Set(["byok", "slack"]));
+  const toggle = (k) => {
+    setPicked((s) => {
+      const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n;
+    });
+  };
+
+  return (
+    <section className="px-6 md:px-16 py-24 border-t border-border">
+      <div className="max-w-5xl mx-auto">
+        <div className="mb-10">
+          <div className="font-mono text-xs uppercase text-primary tracking-widest mb-3">/// build your own bundle</div>
+          <h2 className="font-display font-black text-3xl md:text-5xl leading-tight max-w-3xl">
+            Add just what you need. <span className="text-primary">Skip the rest.</span>
+          </h2>
+          <p className="text-muted-foreground mt-4 max-w-2xl">
+            Tap any service to add it to your workspace. Toggle off to remove. Everything is monthly,
+            no lock-in.
+          </p>
+        </div>
+        <div className="grid md:grid-cols-2 gap-3">
+          {ADDONS.map((a) => {
+            const on = picked.has(a.key);
+            return (
+              <button
+                key={a.key}
+                onClick={() => toggle(a.key)}
+                data-testid={`addon-${a.key}`}
+                className={`text-left border p-5 transition-all group ${on ? "border-primary bg-primary/[0.04]" : "border-border bg-card hover:border-primary/60"}`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`shrink-0 w-8 h-8 border flex items-center justify-center transition-colors ${on ? "border-primary bg-primary text-white" : "border-border text-muted-foreground group-hover:border-primary/60"}`}>
+                    {on ? <Check className="w-4 h-4"/> : <Plus className="w-4 h-4"/>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <div className="font-display font-bold text-base">{a.name}</div>
+                      <div className="font-mono text-[11px] text-primary">{a.pricing}</div>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1 leading-relaxed">{a.desc}</div>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-6">
+          <div className="font-mono text-xs text-muted-foreground">
+            {picked.size} add-on{picked.size === 1 ? "" : "s"} selected
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <button onClick={() => setPicked(new Set())} className="btn-ghost text-xs" data-testid="addons-clear">Clear all</button>
+            <span className="text-muted-foreground text-xs font-mono">// selection stored locally · we'll confirm final quote after waitlist</span>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
