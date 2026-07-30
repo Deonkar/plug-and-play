@@ -22,7 +22,7 @@ export default function AppShell() {
   const links = (
     <>
       <NavLink to="/app" end className={linkCls} data-testid="nav-dashboard" onClick={closeMobile}><Terminal className="w-4 h-4"/> Overview</NavLink>
-      <NavLink to="/app/tasks" className={linkCls} data-testid="nav-tasks" onClick={closeMobile}><ListTodo className="w-4 h-4"/> My Tasks</NavLink>
+      {!isAdmin && <NavLink to="/app/tasks" className={linkCls} data-testid="nav-tasks" onClick={closeMobile}><ListTodo className="w-4 h-4"/> My Tasks</NavLink>}
       {isAdmin && <NavLink to="/app/users" className={linkCls} data-testid="nav-users" onClick={closeMobile}><Users className="w-4 h-4"/> Users</NavLink>}
       {isAdmin && <NavLink to="/app/context" className={linkCls} data-testid="nav-context" onClick={closeMobile}><FileText className="w-4 h-4"/> Context</NavLink>}
       {isAdmin && <NavLink to="/app/crm" className={linkCls} data-testid="nav-crm" onClick={closeMobile}><ListTodo className="w-4 h-4"/> CRM</NavLink>}

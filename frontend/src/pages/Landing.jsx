@@ -49,40 +49,82 @@ export default function Landing() {
           </p>
         </div>
 
-        {/* Terminal preview */}
+        {/* Hero panel — layered, more alive */}
         <motion.div
           initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
-          className="md:col-span-5 border border-border bg-card relative"
+          className="md:col-span-5 relative"
         >
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-black/40">
-            <span className="w-2.5 h-2.5 border border-primary bg-primary/40" />
-            <span className="w-2.5 h-2.5 border border-neutral-700 bg-neutral-800" />
-            <span className="w-2.5 h-2.5 border border-neutral-700 bg-neutral-800" />
-            <span className="ml-3 font-mono text-[10px] text-muted-foreground">ask.company.os</span>
-          </div>
-          <div className="p-5 space-y-4 text-sm">
-            <div className="font-mono text-muted-foreground">
-              <span className="text-primary">$</span> what urgent tasks do I have today?
+          {/* Ambient glow */}
+          <div className="absolute -inset-8 bg-primary/20 blur-[80px] opacity-60 pointer-events-none" />
+
+          <div className="relative border border-border bg-card">
+            {/* Header chrome */}
+            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-black/50">
+              <span className="w-2.5 h-2.5 border border-primary bg-primary/40" />
+              <span className="w-2.5 h-2.5 border border-neutral-700 bg-neutral-800" />
+              <span className="w-2.5 h-2.5 border border-neutral-700 bg-neutral-800" />
+              <span className="ml-3 font-mono text-[10px] text-muted-foreground">ask.company.os</span>
+              <span className="ml-auto flex items-center gap-1 text-[10px] font-mono text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> live
+              </span>
             </div>
-            <div className="border-l-2 border-primary pl-3">
-              <div className="font-mono text-[10px] text-primary uppercase tracking-widest mb-2">assistant</div>
-              <div className="leading-relaxed">
-                You have <b>1 URGENT task</b>:<br />
-                <span className="text-primary">▸ task-01</span> · Call Northwind CTO for demo <br />
-                <span className="text-muted-foreground text-xs">Lead: Northwind Traders (lead-01) · previously escalated — tackle first.</span>
+
+            {/* Conversation */}
+            <div className="p-5 space-y-4 text-sm min-h-[280px]">
+              <div className="font-mono text-muted-foreground">
+                <span className="text-primary">$</span> what urgent tasks do I have today?
+              </div>
+              <div className="border-l-2 border-primary pl-3">
+                <div className="font-mono text-[10px] text-primary uppercase tracking-widest mb-2">assistant</div>
+                <div className="leading-relaxed">
+                  You have <b>1 URGENT task</b>:<br />
+                  <span className="text-primary">▸ task-01</span> · Call Northwind CTO for demo <br />
+                  <span className="text-muted-foreground text-xs">Lead: Northwind Traders (lead-01) · previously escalated — tackle first.</span>
+                </div>
+              </div>
+              <div className="font-mono text-muted-foreground">
+                <span className="text-primary">$</span> <span className="border-r-2 border-primary animate-pulse ml-1" />
               </div>
             </div>
-            <div className="font-mono text-muted-foreground">
-              <span className="text-primary">$</span> _
+
+            {/* Stat strip */}
+            <div className="grid grid-cols-4 border-t border-border font-mono text-[10px] uppercase tracking-widest divide-x divide-border">
+              {[
+                { k: "resp", v: "720ms" },
+                { k: "in", v: "479 tok" },
+                { k: "out", v: "165 tok" },
+                { k: "cache", v: "miss", accent: true },
+              ].map((s, i) => (
+                <div key={i} className="px-3 py-2 text-center">
+                  <div className="text-muted-foreground text-[9px]">{s.k}</div>
+                  <div className={s.accent ? "text-primary" : "text-white"}>{s.v}</div>
+                </div>
+              ))}
             </div>
+          </div>
+
+          {/* Floating "plug-in" tag */}
+          <div className="absolute -top-3 -right-3 bg-primary text-white text-[10px] font-mono uppercase tracking-widest px-2 py-1 border border-primary/60 rotate-2">
+            plug-in ready
           </div>
         </motion.div>
       </section>
 
-      {/* MARQUEE */}
-      <section className="border-y border-border bg-black/40 py-4 overflow-hidden">
-        <div className="marquee-inner font-mono text-xs uppercase tracking-widest text-muted-foreground/60 whitespace-nowrap">
-          {"Claude Sonnet 4.6 · FastAPI · React · MongoDB · Slack · Emergent Universal Key · JWT · Recharts · Framer Motion · Multi-tenant · RBAC · Prompt caching · Auto-ingest · Whisper voice · ".repeat(3)}
+      {/* BY THE NUMBERS — static, calm, no more marquee */}
+      <section className="border-y border-border bg-black/40">
+        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 divide-x divide-border">
+          {[
+            { k: "install time", v: "< 5 min", sub: "one command" },
+            { k: "data leakage", v: "0", sub: "row-level RBAC" },
+            { k: "cache hit rate", v: "48%", sub: "typical tenant" },
+            { k: "auto docs", v: "3 files", sub: "on repo ingest" },
+          ].map((s) => (
+            <div key={s.k} className="px-6 md:px-8 py-6 text-center">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-2">{s.k}</div>
+              <div className="font-display font-black text-3xl md:text-4xl text-white leading-none">{s.v}</div>
+              <div className="text-[11px] font-mono text-muted-foreground mt-1">{s.sub}</div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -119,30 +161,31 @@ export default function Landing() {
         <div className="mb-10 max-w-3xl">
           <div className="font-mono text-xs uppercase text-primary tracking-widest mb-3">/// see it running</div>
           <h2 className="font-display font-black text-4xl md:text-5xl leading-tight">
-            What it looks like<br /><span className="text-primary">on the ground.</span>
+            Not a screenshot.<br /><span className="text-primary">A live walkthrough.</span>
           </h2>
           <p className="text-muted-foreground mt-4 max-w-2xl">
-            Two live, self-playing reels. Left: how the widget behaves inside a real CRM. Right: what
-            admins see when they open the console.
+            Two auto-playing reels with narration. Left: how the widget behaves inside a totally
+            unrelated CRM — proving it's a real plug-in, not our own site. Right: what admins do in
+            the console (tokens, quotas, context).
           </p>
         </div>
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="space-y-16">
           <div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-1 h-6 bg-primary" />
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-1 h-8 bg-primary" />
               <div>
-                <div className="font-display font-bold">Inside a CRM</div>
-                <div className="font-mono text-[11px] text-muted-foreground">Agent view · widget floats bottom-right</div>
+                <div className="font-display font-bold text-lg">Inside a customer's CRM</div>
+                <div className="font-mono text-[11px] text-muted-foreground">Agent view · widget is the only Company/OS surface</div>
               </div>
             </div>
             <CRMDemo />
           </div>
           <div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-1 h-6 bg-primary" />
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-1 h-8 bg-primary" />
               <div>
-                <div className="font-display font-bold">Admin console</div>
-                <div className="font-mono text-[11px] text-muted-foreground">Analytics · Users · Context — auto-cycling</div>
+                <div className="font-display font-bold text-lg">Admin console</div>
+                <div className="font-mono text-[11px] text-muted-foreground">Analytics → quotas → context — auto-cycling</div>
               </div>
             </div>
             <AdminDemo />

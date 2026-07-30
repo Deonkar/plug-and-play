@@ -98,6 +98,10 @@ class BlockIn(BaseModel):
     blocked: bool
 
 
+class LimitIn(BaseModel):
+    token_limit: int  # 0 = unlimited
+
+
 class SettingsIn(BaseModel):
     llm_provider: str = "anthropic"
     llm_model: str = "claude-sonnet-4-6"
@@ -180,6 +184,8 @@ def user_to_out(u: dict) -> dict:
         "company_id": u["company_id"],
         "company_name": u.get("company_name", ""),
         "blocked": u.get("blocked", False),
+        "token_limit": u.get("token_limit", 0),   # 0 = unlimited
+        "token_used": u.get("token_used", 0),
     }
 
 
@@ -270,6 +276,26 @@ async def toggle_block(uid: str, inp: BlockIn, user=Depends(require_role("super_
     if target["id"] == user["id"]:
         raise HTTPException(400, "Cannot block yourself")
     await db.users.update_one({"id": uid}, {"$set": {"blocked": inp.blocked}})
+    return {"ok": True}
+
+
+@api.patch("/users/{uid}/limit")
+async def set_token_limit(uid: str, inp: LimitIn, user=Depends(require_role("super_admin", "admin"))):
+    target = await db.users.find_one({"id": uid, "company_id": user["company_id"]})
+    if not target:
+        raise HTTPException(404, "User not found")
+    if inp.token_limit < 0:
+        raise HTTPException(400, "Limit must be >= 0")
+    await db.users.update_one({"id": uid}, {"$set": {"token_limit": inp.token_limit}})
+    return {"ok": True}
+
+
+@api.post("/users/{uid}/reset-usage")
+async def reset_usage(uid: str, user=Depends(require_role("super_admin", "admin"))):
+    target = await db.users.find_one({"id": uid, "company_id": user["company_id"]})
+    if not target:
+        raise HTTPException(404, "User not found")
+    await db.users.update_one({"id": uid}, {"$set": {"token_used": 0}})
     return {"ok": True}
 
 
@@ -406,6 +432,12 @@ async def chat_endpoint(inp: ChatIn, user=Depends(current_user)):
     session_id = inp.session_id or str(uuid.uuid4())
     ck = cache_key(company_id, user["role"], user["id"], message)
 
+    # 0) Enforce per-user token quota (0 = unlimited)
+    token_limit = int(user.get("token_limit") or 0)
+    token_used = int(user.get("token_used") or 0)
+    if token_limit > 0 and token_used >= token_limit:
+        raise HTTPException(429, f"Token quota exceeded ({token_used}/{token_limit}). Contact an admin.")
+
     # 1) Cache lookup
     cached = await db.prompt_cache.find_one({"key": ck}, {"_id": 0})
     cache_hit = False
@@ -473,6 +505,12 @@ async def chat_endpoint(inp: ChatIn, user=Depends(current_user)):
         "cache_hit": cache_hit,
         "created_at": now_iso(),
     })
+
+    # 5) Increment per-user token counter (cache-hits count too, since they still consumed context on 1st call)
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$inc": {"token_used": int(tokens_in + tokens_out)}},
+    )
 
     return {
         "answer": answer,

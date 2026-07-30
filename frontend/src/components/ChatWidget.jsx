@@ -2,9 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { MessageSquare, X, Send, Sparkles, Copy, Check, Minimize2, Zap, Mic, Square } from "lucide-react";
+import { MessageSquare, X, Send, Sparkles, Copy, Check, Minimize2, Zap, Mic, Square, GripVertical } from "lucide-react";
 import api from "../lib/api";
 import { cn } from "@/lib/utils";
+
+const DEFAULT_SIZE = { w: 420, h: 620 };
+const MIN_SIZE = { w: 320, h: 420 };
+const MAX_SIZE = { w: 720, h: 900 };
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
@@ -15,6 +19,17 @@ export default function ChatWidget() {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [micError, setMicError] = useState("");
+  const [size, setSize] = useState(() => {
+    try {
+      const raw = localStorage.getItem("cos_chat_size");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.w && parsed?.h) return parsed;
+      }
+    } catch { /* ignore */ }
+    return DEFAULT_SIZE;
+  });
+  const resizingRef = useRef(false);
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
   const mediaRecRef = useRef(null);
@@ -93,6 +108,36 @@ export default function ChatWidget() {
 
   const toggleMic = () => { if (recording) stopRecording(); else startRecording(); };
 
+  const startResize = (e) => {
+    e.preventDefault();
+    resizingRef.current = true;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startW = size.w;
+    const startH = size.h;
+    const onMove = (ev) => {
+      if (!resizingRef.current) return;
+      const dx = startX - ev.clientX;
+      const dy = startY - ev.clientY;
+      const w = Math.max(MIN_SIZE.w, Math.min(MAX_SIZE.w, startW + dx));
+      const h = Math.max(MIN_SIZE.h, Math.min(MAX_SIZE.h, startH + dy));
+      setSize({ w, h });
+    };
+    const onUp = () => {
+      resizingRef.current = false;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      try { localStorage.setItem("cos_chat_size", JSON.stringify({ w: size.w, h: size.h })); } catch { /* ignore */ }
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  // persist size once user stops interacting
+  useEffect(() => {
+    try { localStorage.setItem("cos_chat_size", JSON.stringify(size)); } catch { /* ignore */ }
+  }, [size]);
+
   const send = async (override) => {
     const q = (override ?? input).trim();
     if (!q || busy) return;
@@ -149,13 +194,23 @@ export default function ChatWidget() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.96 }}
             transition={{ type: "spring", damping: 24, stiffness: 260 }}
+            style={{ width: typeof window !== "undefined" && window.innerWidth < 768 ? undefined : size.w, height: typeof window !== "undefined" && window.innerWidth < 768 ? undefined : size.h }}
             className={cn(
               "fixed z-50 chat-glass flex flex-col shadow-[0_20px_60px_-20px_rgba(255,80,20,0.35)]",
-              "inset-x-3 bottom-3 md:inset-auto md:bottom-6 md:right-6 md:w-[420px] md:h-[620px]",
+              "inset-x-3 bottom-3 md:inset-auto md:bottom-6 md:right-6",
               "max-h-[calc(100vh-1.5rem)]"
             )}
             data-testid="chat-widget-panel"
           >
+            {/* Resize handle (top-left corner) — desktop only */}
+            <div
+              onMouseDown={startResize}
+              className="hidden md:flex absolute -top-1 -left-1 w-5 h-5 items-center justify-center cursor-nwse-resize z-10 text-muted-foreground hover:text-primary transition-colors"
+              title="Drag to resize"
+              data-testid="chat-resize-handle"
+            >
+              <GripVertical className="w-3 h-3 rotate-45" />
+            </div>
             {/* HEADER */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent">
               <div className="flex items-center gap-2.5 min-w-0">

@@ -97,3 +97,18 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 - ✅ Landing trimmed to hero + marquee + bento + live demos + CTA (heavier content moved to dedicated pages)
 - ✅ Renamed API docs route from `/api-docs` → `/reference` (avoids ingress `/api*` → backend collision)
 - ✅ Page `<title>` updated to "Company/OS — the chatbot that knows your business"
+
+## Update — Session 7 (Jan 2026) — Quotas + Redesigned Demos + Resizable Chat
+### Product
+- ✅ **Per-user token quotas** — `token_limit` + `token_used` on user docs; `/api/chat` enforces 429 when cap exceeded; `PATCH /api/users/{id}/limit`, `POST /api/users/{id}/reset-usage` (admin only)
+- ✅ **Users page redesigned** — heading now "Team & token quotas", per-row progress bar (green/orange/red), Set limit / Reset / Block actions, modal with preset chips (∞, 5k, 10k, 25k, 50k)
+- ✅ **Admin sidebar cleaned** — "My Tasks" hidden for admins/super_admins (only agents see their tasks)
+
+### Landing UX
+- ✅ **CRMDemo v2** — now a light-theme "SalesHub" generic CRM so Company/OS clearly reads as a plug-in overlay; side narration column with 4 synchronized steps
+- ✅ **AdminDemo v2** — sidebar has no "My Tasks"; 3-tab cycle Analytics → Users & Quotas → Context; quotas panel shows real progress bars with "over cap" state; analytics shows top prompts frequency
+- ✅ **Distracting marquee killed** — replaced with a static "by-the-numbers" strip (install time / data leakage / cache-hit rate / auto docs)
+- ✅ **Hero right panel upgraded** — ambient orange glow, live indicator, "PLUG-IN READY" tag, 4-col stat strip (resp / in / out / cache)
+
+### Chat widget
+- ✅ **Resizable panel** — grip handle top-left corner, drag to resize (min 320×420, max 720×900), size persisted to localStorage
