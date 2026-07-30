@@ -98,7 +98,10 @@ export default function CRM() {
               {leads.map((l) => (
                 <tr key={l.id} data-testid={`lead-row-${l.id}`}>
                   <td className="font-mono text-xs">{l.id.slice(0, 8)}</td>
-                  <td>{l.name}</td>
+                  <td>
+                    <div>{l.name}</div>
+                    <CustomFieldChips data={l.custom_fields} />
+                  </td>
                   <td className="font-mono text-xs">{l.email}</td>
                   <td><span className="badge">{l.status}</span></td>
                   <td><span className={`badge ${badgeClass(l.priority)}`}>{l.priority}</span></td>
@@ -115,7 +118,10 @@ export default function CRM() {
               {tasks.map((t) => (
                 <tr key={t.id} data-testid={`task-row-${t.id}`}>
                   <td className="font-mono text-xs">{t.id.slice(0, 8)}</td>
-                  <td>{t.title}</td>
+                  <td>
+                    <div>{t.title}</div>
+                    <CustomFieldChips data={t.custom_fields} />
+                  </td>
                   <td className="font-mono text-xs">{(t.lead_id || "").slice(0, 8)}</td>
                   <td><span className={`badge ${badgeClass(t.priority)}`}>{t.priority}</span></td>
                   <td className="font-mono text-xs">{(t.due_date || "").slice(0, 10)}</td>
@@ -128,6 +134,22 @@ export default function CRM() {
           </table>
         )}
       </div>
+    </div>
+  );
+}
+
+function CustomFieldChips({ data }) {
+  if (!data || typeof data !== "object") return null;
+  const entries = Object.entries(data).filter(([, v]) => v !== null && v !== "");
+  if (entries.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1 mt-1" data-testid="custom-fields">
+      {entries.slice(0, 4).map(([k, v]) => (
+        <span key={k} className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground border border-border px-1.5 py-0.5">
+          {k}: <span className="text-foreground">{String(v).slice(0, 40)}</span>
+        </span>
+      ))}
+      {entries.length > 4 && <span className="font-mono text-[9px] text-muted-foreground">+{entries.length - 4} more</span>}
     </div>
   );
 }

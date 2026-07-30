@@ -80,6 +80,7 @@ class LeadIn(BaseModel):
     priority: str = "medium"
     assigned_to: Optional[str] = None  # user_id
     notes: str = ""
+    custom_fields: Dict[str, Any] = {}  # arbitrary per-company key/value data
 
 
 class TaskIn(BaseModel):
@@ -90,6 +91,7 @@ class TaskIn(BaseModel):
     due_date: str  # ISO
     status: str = "open"  # open / done
     assigned_to: str  # user_id
+    custom_fields: Dict[str, Any] = {}
 
 
 class ChatIn(BaseModel):
@@ -165,9 +167,10 @@ def verify_pw(pw: str, hashed: str) -> bool:
         return False
 
 
-def make_token(user_id: str, hours: int = 24 * 7) -> str:
+def make_token(user_id: str, token_version: int = 0, hours: int = 24 * 7) -> str:
     payload = {
         "sub": user_id,
+        "tv": token_version,  # token version — bump on user record to invalidate all outstanding tokens
         "exp": datetime.now(timezone.utc) + timedelta(hours=hours),
         "iat": datetime.now(timezone.utc),
     }
@@ -198,6 +201,11 @@ async def current_user(request: Request) -> dict:
         raise HTTPException(401, "User not found")
     if user.get("blocked"):
         raise HTTPException(403, "User is blocked")
+    # Server-side token revocation: bump user.token_version to kill all outstanding JWTs.
+    token_tv = payload.get("tv", 0)
+    user_tv = user.get("token_version", 0)
+    if token_tv != user_tv:
+        raise HTTPException(401, "Token revoked — please sign in again")
     return user
 
 
@@ -220,7 +228,40 @@ def user_to_out(u: dict) -> dict:
         "blocked": u.get("blocked", False),
         "token_limit": u.get("token_limit", 0),   # 0 = unlimited
         "token_used": u.get("token_used", 0),
+        "department": u.get("department", ""),
     }
+
+
+LOGIN_MAX_ATTEMPTS = 5      # SEC hardening: rate limit /auth/login
+LOGIN_WINDOW_MIN = 10       # attempts counted within this rolling window
+LOGIN_LOCKOUT_MIN = 15      # once tripped, IP is blocked this long
+
+async def _client_ip(request: Request) -> str:
+    # Prefer X-Forwarded-For (first hop = original client) since we're behind K8s ingress
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()[:64]
+    return (request.client.host if request.client else "unknown")[:64]
+
+
+async def _login_throttle_check(ip: str, email: str):
+    now = datetime.now(timezone.utc)
+    window_start = (now - timedelta(minutes=LOGIN_WINDOW_MIN)).isoformat()
+    # Trip if EITHER the IP or the email hit the ceiling in this window.
+    ip_fails = await db.login_attempts.count_documents({
+        "ip": ip, "success": False, "at": {"$gte": window_start}
+    })
+    email_fails = await db.login_attempts.count_documents({
+        "email": email[:100], "success": False, "at": {"$gte": window_start}
+    })
+    if ip_fails >= LOGIN_MAX_ATTEMPTS or email_fails >= LOGIN_MAX_ATTEMPTS:
+        raise HTTPException(429, f"Too many failed login attempts. Try again in {LOGIN_LOCKOUT_MIN} minutes.")
+
+
+async def _login_record(ip: str, email: str, success: bool):
+    await db.login_attempts.insert_one({
+        "ip": ip, "email": email[:100].lower(), "success": success, "at": now_iso()
+    })
 
 
 # --------- Auth Endpoints ---------
@@ -247,23 +288,37 @@ async def register(inp: RegisterIn):
         "company_id": company_id,
         "company_name": inp.company_name,
         "blocked": False,
+        "token_version": 0,
+        "department": "",
         "created_at": now_iso(),
     }
     await db.users.insert_one(doc)
-    token = make_token(user_id)
+    token = make_token(user_id, 0)
     return {"token": token, "user": user_to_out(doc)}
 
 
 @api.post("/auth/login")
-async def login(inp: LoginIn):
+async def login(inp: LoginIn, request: Request):
+    ip = await _client_ip(request)
+    await _login_throttle_check(ip, inp.email)
     email = inp.email.lower()
     user = await db.users.find_one({"email": email}, {"_id": 0})
     if not user or not verify_pw(inp.password, user["password_hash"]):
+        await _login_record(ip, email, False)
         raise HTTPException(401, "Invalid credentials")
     if user.get("blocked"):
+        await _login_record(ip, email, False)
         raise HTTPException(403, "User is blocked")
-    token = make_token(user["id"])
+    await _login_record(ip, email, True)
+    token = make_token(user["id"], user.get("token_version", 0))
     return {"token": token, "user": user_to_out(user)}
+
+
+@api.post("/auth/logout")
+async def logout(user=Depends(current_user)):
+    """Bump token_version so every outstanding JWT for this user is now invalid."""
+    await db.users.update_one({"id": user["id"]}, {"$inc": {"token_version": 1}})
+    return {"ok": True}
 
 
 @api.get("/auth/me")
@@ -283,6 +338,11 @@ class InviteUserIn(BaseModel):
     name: str
     password: str
     role: Literal["admin", "agent"]
+    department: str = ""
+
+
+class DepartmentIn(BaseModel):
+    department: str
 
 
 @api.post("/users")
@@ -296,10 +356,29 @@ async def create_user(inp: InviteUserIn, user=Depends(require_role("super_admin"
         "password_hash": hash_pw(inp.password),
         "role": inp.role, "company_id": user["company_id"],
         "company_name": user["company_name"], "blocked": False,
+        "token_version": 0,
+        "department": (inp.department or "").strip(),
         "created_at": now_iso(),
     }
     await db.users.insert_one(doc)
     return user_to_out(doc)
+
+
+@api.patch("/users/{uid}/department")
+async def set_department(uid: str, inp: DepartmentIn, user=Depends(require_role("super_admin", "admin"))):
+    target = await db.users.find_one({"id": uid, "company_id": user["company_id"]})
+    if not target:
+        raise HTTPException(404, "User not found")
+    await db.users.update_one({"id": uid}, {"$set": {"department": (inp.department or "").strip()}})
+    return {"ok": True}
+
+
+@api.get("/departments")
+async def list_departments(user=Depends(current_user)):
+    """Distinct list of department names within the company (for filter chips)."""
+    rows = await db.users.find({"company_id": user["company_id"]}, {"_id": 0, "department": 1}).to_list(500)
+    depts = sorted({(r.get("department") or "").strip() for r in rows if (r.get("department") or "").strip()})
+    return depts
 
 
 @api.patch("/users/{uid}/block")
@@ -670,12 +749,21 @@ def build_system_prompt(context_docs: List[dict], user: dict, leads: List[dict],
     parts = [
         f"You are the AI assistant for {user['company_name']} — a plug-and-play Company OS chatbot.",
         f"You are talking to: {user['name']} (role: {user['role']}, id: {user['id']}).",
-        "Answer questions strictly based on the context docs and CRM data provided below.",
-        "Be concise, actionable, and reference lead/task IDs when relevant.",
+        "",
+        "## Voice",
+        "Talk like a helpful colleague — natural, conversational sentences, contractions are fine.",
+        "Prefer flowing paragraphs over lists. Use a short bullet only when a real enumeration helps.",
+        "NEVER dump giant markdown tables, big headings, emoji rows, or 'Recommended action:' template sections.",
+        "Do NOT use decorative emojis (🚨🔴📋 etc.). One inline `code span` for an ID or field name is fine.",
+        "When you mention a task or lead, refer to it by its short id in backticks like `task-01` or `lead-04`. No status badges.",
+        "Keep answers under ~120 words unless the question truly demands more detail.",
+        "",
+        "## Rules",
+        "Answer strictly from the context docs and CRM data below. If the answer isn't there, say so.",
+        "Never fabricate leads, tasks, users, dates, or numbers.",
         "",
         "=== COMPANY CONTEXT DOCUMENTS ===",
     ]
-    # Skip docs the admin has toggled off (default: included=True)
     active_docs = [d for d in context_docs if d.get("included", True)]
     for d in active_docs:
         parts.append(f"\n### [{d['kind']}] {d['title']}\n{d['content']}\n")
@@ -683,12 +771,16 @@ def build_system_prompt(context_docs: List[dict], user: dict, leads: List[dict],
     if not leads:
         parts.append("(no leads assigned)")
     for l in leads:
-        parts.append(f"- Lead {l['id'][:8]} | {l['name']} | status={l['status']} | priority={l['priority']} | notes: {l.get('notes','')}")
+        cf = l.get("custom_fields") or {}
+        extras = (" | " + " | ".join(f"{k}={v}" for k, v in cf.items())) if cf else ""
+        parts.append(f"- Lead {l['id'][:8]} | {l['name']} | status={l['status']} | priority={l['priority']} | notes: {l.get('notes','')}{extras}")
     parts.append("\n=== USER'S TASKS ===")
     if not tasks:
         parts.append("(no tasks)")
     for t in tasks:
-        parts.append(f"- Task {t['id'][:8]} | {t['title']} | priority={t['priority']} | status={t['status']} | due={t.get('due_date','')} | lead={t.get('lead_id','')[:8]}")
+        cf = t.get("custom_fields") or {}
+        extras = (" | " + " | ".join(f"{k}={v}" for k, v in cf.items())) if cf else ""
+        parts.append(f"- Task {t['id'][:8]} | {t['title']} | priority={t['priority']} | status={t['status']} | due={t.get('due_date','')} | lead={t.get('lead_id','')[:8]}{extras}")
     parts.append("\nOnly reveal data listed above. Never fabricate leads/tasks/users.")
     return "\n".join(parts)
 
@@ -1255,33 +1347,105 @@ async def ingest_codebase(inp: IngestIn, user=Depends(require_role("super_admin"
 async def admin_chat_history(
     user=Depends(require_role("super_admin", "admin")),
     user_id: Optional[str] = None,
-    range: str = "14d",   # 7d | 14d | 30d | all
+    department: Optional[str] = None,
+    range: str = "14d",
     cached_only: Optional[bool] = None,
     q: Optional[str] = None,
     limit: int = 200,
 ):
-    """Full chat log for admins. Filterable by user, date range, cached-only, keyword."""
+    """Full chat log for admins — filterable by department, user, date range, cache-only, keyword."""
     days_map = {"7d": 7, "14d": 14, "30d": 30}
     days = days_map.get(range)
     match: Dict[str, Any] = {"company_id": user["company_id"]}
     if days is not None:
         since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
         match["created_at"] = {"$gte": since}
+
+    # Department filter: resolve user_ids in that department
+    dept_user_ids: Optional[set] = None
+    if department:
+        rows = await db.users.find(
+            {"company_id": user["company_id"], "department": department},
+            {"_id": 0, "id": 1},
+        ).to_list(500)
+        dept_user_ids = {r["id"] for r in rows}
+        if not dept_user_ids:
+            return {"items": [], "total": 0, "filters": {"user_id": user_id, "department": department, "range": range, "cached_only": cached_only, "q": q}}
+        match["user_id"] = {"$in": list(dept_user_ids)}
     if user_id:
+        # If department filter is also set, user_id must intersect
+        if dept_user_ids is not None and user_id not in dept_user_ids:
+            return {"items": [], "total": 0, "filters": {"user_id": user_id, "department": department, "range": range, "cached_only": cached_only, "q": q}}
         match["user_id"] = user_id
     if cached_only is True:
         match["cache_hit"] = True
     if q:
-        # SEC-003: escape user input before feeding to $regex; cap length
         match["message"] = {"$regex": re.escape(q[:80]), "$options": "i"}
+
     rows = await db.chat_logs.find(
         match,
         {"_id": 0, "id": 1, "user_id": 1, "user_name": 1, "user_role": 1,
          "message": 1, "answer": 1, "tokens_in": 1, "tokens_out": 1,
          "cache_hit": 1, "created_at": 1},
     ).sort("created_at", -1).to_list(min(limit, 500))
+
+    # Enrich rows with department (single company_users cache to avoid N queries)
+    users_map = {u["id"]: u for u in await db.users.find(
+        {"company_id": user["company_id"]}, {"_id": 0, "id": 1, "department": 1}
+    ).to_list(500)}
+    for r in rows:
+        r["department"] = (users_map.get(r["user_id"], {}) or {}).get("department", "") or ""
+
     total = await db.chat_logs.count_documents(match)
-    return {"items": rows, "total": total, "filters": {"user_id": user_id, "range": range, "cached_only": cached_only, "q": q}}
+    return {
+        "items": rows,
+        "total": total,
+        "filters": {"user_id": user_id, "department": department, "range": range, "cached_only": cached_only, "q": q},
+    }
+
+
+@api.get("/admin/chats/summary")
+async def admin_chat_summary(user=Depends(require_role("super_admin", "admin")), range: str = "14d"):
+    """Counts grouped by department → user, so the UI can render a two-level nav."""
+    days_map = {"7d": 7, "14d": 14, "30d": 30}
+    days = days_map.get(range)
+    match: Dict[str, Any] = {"company_id": user["company_id"]}
+    if days is not None:
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        match["created_at"] = {"$gte": since}
+    pipeline = [
+        {"$match": match},
+        {"$group": {"_id": "$user_id", "user_name": {"$first": "$user_name"}, "count": {"$sum": 1}}},
+    ]
+    per_user_rows = await db.chat_logs.aggregate(pipeline).to_list(500)
+    users_rows = await db.users.find(
+        {"company_id": user["company_id"]}, {"_id": 0, "id": 1, "name": 1, "department": 1, "role": 1}
+    ).to_list(500)
+    users_by_id = {u["id"]: u for u in users_rows}
+    dept_map: Dict[str, Dict[str, Any]] = {}
+    for r in per_user_rows:
+        uid = r["_id"]
+        u = users_by_id.get(uid, {})
+        dept = (u.get("department") or "Unassigned").strip() or "Unassigned"
+        d = dept_map.setdefault(dept, {"department": dept, "total": 0, "users": []})
+        d["total"] += r["count"]
+        d["users"].append({
+            "id": uid,
+            "name": u.get("name") or r.get("user_name") or "?",
+            "role": u.get("role", ""),
+            "count": r["count"],
+        })
+    # Also include users with 0 chats so admins can see who's inactive
+    for u in users_rows:
+        dept = (u.get("department") or "Unassigned").strip() or "Unassigned"
+        d = dept_map.setdefault(dept, {"department": dept, "total": 0, "users": []})
+        if not any(x["id"] == u["id"] for x in d["users"]):
+            d["users"].append({"id": u["id"], "name": u["name"], "role": u.get("role", ""), "count": 0})
+    result = list(dept_map.values())
+    for d in result:
+        d["users"].sort(key=lambda x: (-x["count"], x["name"].lower()))
+    result.sort(key=lambda d: (-d["total"], d["department"].lower()))
+    return {"departments": result, "range": range}
 
 
 # --------- Settings ---------
@@ -1349,15 +1513,18 @@ async def seed_demo():
         {"id": admin_id, "email": admin_email, "name": "Ava Admin",
          "password_hash": hash_pw(admin_pw), "role": "super_admin",
          "company_id": company_id, "company_name": "Acme CRM Demo",
-         "blocked": False, "created_at": now_iso()},
+         "blocked": False, "token_version": 0, "department": "",
+         "created_at": now_iso()},
         {"id": agent1_id, "email": "alice@acme.demo", "name": "Alice Agent",
          "password_hash": hash_pw("agent123"), "role": "agent",
          "company_id": company_id, "company_name": "Acme CRM Demo",
-         "blocked": False, "created_at": now_iso()},
+         "blocked": False, "token_version": 0, "department": "Sales",
+         "created_at": now_iso()},
         {"id": agent2_id, "email": "bob@acme.demo", "name": "Bob Agent",
          "password_hash": hash_pw("agent123"), "role": "agent",
          "company_id": company_id, "company_name": "Acme CRM Demo",
-         "blocked": False, "created_at": now_iso()},
+         "blocked": False, "token_version": 0, "department": "Support",
+         "created_at": now_iso()},
     ]
     for u in users:
         await db.users.update_one({"email": u["email"]}, {"$set": u}, upsert=True)

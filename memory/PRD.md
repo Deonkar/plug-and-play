@@ -349,3 +349,53 @@ Ran the security audit against the deployed app. Verdict: **FAIL — action requ
 - Server-side JWT revocation on logout / role change (currently client-side only)
 - CORS whitelist from env instead of default `*` (needs prod domain list first)
 - Direct GitHub URL ingest (deferred from Session 18)
+
+## Update — Session 20 (Feb 2026) — CRM flexibility + Departments + Auth hardening + Conversational chat
+### CRM custom_fields (option A — flexible without a UI builder)
+- `LeadIn` & `TaskIn` now accept `custom_fields: Dict[str, Any]` (default `{}`) — any per-company key/value pairs
+- `build_system_prompt` folds active custom fields into the CRM data given to the LLM
+- CRM table renders custom fields as compact uppercase chips beneath the name column via new `<CustomFieldChips>`; caps at 4 shown + "+N more"
+- Seeded demo custom_fields on 2 leads (`deal_size`, `industry`, `region`, `contract_type`) and 2 tasks (`channel`, `duration_min`, `blocker`, `owner_dept`) so the feature is visible without any admin action
+
+### Department field on users + Chat History grouped by Department → Agent
+- New `department: str` field on `users` (default `""`); `POST /users` accepts it, new `PATCH /users/:id/department` updates it
+- New `GET /departments` — distinct list for filter chips
+- New `GET /admin/chats/summary?range=...` — returns `{departments: [{department, total, users: [{id, name, role, count}]}]}` — includes inactive users too, sorted by activity
+- `GET /admin/chats` now accepts `?department=` (resolves department → user_ids → `$in` match) and returns each row enriched with the user's `department`
+- Frontend Chats page rebuilt: left sidebar shows a two-level accordion (All / Unassigned / Sales / Support with expandable agent rows + chat counts); middle column has the message list with search + cached-only toggle; right column keeps the Q&A detail pane
+- Demo seed: `alice@acme.demo` → Sales, `bob@acme.demo` → Support, admin unassigned
+
+### Server-side JWT revocation on logout
+- JWT payload now carries `tv` (token_version) claim; `current_user` compares it against `user.token_version` and 401s on mismatch
+- `POST /auth/logout` bumps `token_version` (`$inc: 1`) → every outstanding JWT for that user is now dead
+- Frontend `logout()` now calls `POST /auth/logout` before clearing localStorage
+- Verified: after logout, calling `/auth/me` with the old token returns 401
+
+### Login throttling
+- New `login_attempts` collection; check on every `POST /auth/login`
+- Trips at **5 failed attempts / 10-minute rolling window** per **IP or per email** (whichever hits first) → 429 with a 15-min lockout message
+- Reads real client IP from `X-Forwarded-For` (first hop) since we're behind K8s ingress; falls back to `request.client.host`
+- Verified: 6th consecutive bad login returns 429; 7th also 429
+
+### Conversational chat tone (retuned system prompt)
+- Rewrote the "Voice" section of `build_system_prompt` to explicitly ban markdown tables, decorative emojis, big headings, "Recommended action:" template sections
+- Instructions: talk like a helpful colleague, contractions fine, prefer flowing paragraphs over lists, keep under ~120 words unless the question demands more, reference IDs with inline backticks not badges
+- Verified live: greeting → "Hey Ava! How can I help you today?" instead of a spec doc
+
+### Endpoints added this session
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/auth/logout` | Server-side JWT revocation via token_version bump |
+| `PATCH /api/users/:id/department` | Set a user's department |
+| `GET /api/departments` | List distinct departments for filter chips |
+| `GET /api/admin/chats/summary` | Chats grouped by department → user with counts |
+| `GET /api/admin/chats?department=...` | Filter by department in addition to user_id |
+
+### Backlog / Next
+- **Direct GitHub URL Ingest** (still pending from Session 18)
+- **Command Palette** (Cmd+K)
+- **Real Resend** for contact form (still blocked on API key)
+- **Real Stripe** checkout
+- **Prompt cost estimator** in chat input ("≈ 240 tokens · $0.001")
+- **Bulk actions in CRM** (checkbox rows → reassign / close / escalate multiple at once)
+

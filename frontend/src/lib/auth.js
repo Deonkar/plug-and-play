@@ -39,7 +39,12 @@ export function AuthProvider({ children }) {
     } catch (e) { return { ok: false, error: formatDetail(e.response?.data?.detail) || e.message }; }
   };
 
-  const logout = () => { localStorage.removeItem("cos_token"); setUser(null); };
+  const logout = async () => {
+    // Server-side revocation: bump token_version so the outstanding JWT dies
+    try { await api.post("/auth/logout"); } catch { /* ignore — clearing local anyway */ }
+    localStorage.removeItem("cos_token");
+    setUser(null);
+  };
 
   return (
     <AuthCtx.Provider value={{ user, loading, login, register, logout, refresh: fetchMe }}>
