@@ -1,0 +1,25 @@
+{
+  "summary": "Iteration 3: Verified light-mode readability fix on landing demo section + regressed backend (contact/waitlist/chat quota/monthly reset) and login flow. Primary bug is FIXED — .demo-dark class pins CSS vars to dark values with the demo section rendering bg=rgb(10,10,10) with text=rgb(250,250,250) (active) and rgb(161,161,161) (inactive) even when the page theme is light. All landing composition elements present: hero headline 'knows your business.' (1x), eyebrow 'A PLUG-AND-PLAY OPERATING SYSTEM' (visible), Register now (3x), Learn more (1x), [data-testid=plugin-ready-tag] (1x), Number labels (Install, Data leaks, Cache hit, Auto docs), pillars (Contextual/Scoped/Plug-and-play), demo header 'Not a screenshot.', closer 'Your CRM is loud.', all nav links (How, Tech Stack, Pricing, About, Contact, API Docs, FAQ, Sign in). Theme toggle switches data-theme dark<->light. Backend: 7/7 pytest pass. Admin login → /app dashboard renders, Ask/OS FAB visible (chat backend already validated by test_chat_admin_basic returning valid answer with Northwind/task-01).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    ".demo-dark class in index.css cleanly pins theme vars to dark values regardless of parent [data-theme]; confirmed via computed styles.",
+    "Landing.jsx composition is Apple-style spacing with per-section testids where needed (plugin-ready-tag present).",
+    "server.py still ~1059 lines — earlier suggestion to split into modules still stands as a nice-to-have.",
+    "Public endpoints /api/public/contact and /api/public/waitlist still lack rate-limit/captcha — spam risk in prod."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% of tested flows"},
+  "test_credentials": "admin@acme.demo/admin123 (verified working)",
+  "seed_data_creation": "Ephemeral test contact + waitlist docs auto-cleaned in tests.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Landing has been fully rewritten (Apple composition). Demo & ProductMoment containers wrapped in .demo-dark and now render dark in both themes. Contrast values captured: bg rgb(10,10,10), active-step text rgb(250,250,250), inactive text rgb(161,161,161) — both well above WCAG AA. backend_test.py continues to cover contact, waitlist, chat basic, chat 429 quota, and monthly reset. Only outstanding light-theme contrast concern (from iter 2) worth spot-checking on new nav/CTA is not observable now that hero uses text-primary + solid Register CTA and secondary Learn more still uses bordered button — both visible in light mode screenshot.",
+  "rca_of_the_issue": "Original bug: In light mode, narration/product panels inside the demo section inherited the light theme's foreground vars (dark text) but their parent card backgrounds were still dark, causing near-invisible dark-on-dark or light-on-light text as content flowed. Fix: A new .demo-dark utility in index.css re-declares --background, --foreground, --card, --card-foreground, --muted, --muted-foreground, --border etc. back to dark palette values inside that subtree, forcing the demo island to render as if data-theme='dark' regardless of the page theme. Verified computed styles inside .demo-dark: bg rgb(10,10,10) with foreground rgb(250,250,250) even when documentElement data-theme='light'."
+}

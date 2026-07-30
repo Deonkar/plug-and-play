@@ -89,6 +89,22 @@ code { font-family: 'JetBrains Mono', monospace; }
     --chart-4: 0 0% 65%;
     --chart-5: 30 90% 45%;
   }
+
+  /* Demo containers stay dark regardless of site theme (they represent an app screen) */
+  .demo-dark {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 98%;
+    --primary: 15 100% 50%;
+    --primary-foreground: 0 0% 98%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 63%;
+    --border: 0 0% 14%;
+    --input: 0 0% 12%;
+    background: hsl(0 0% 4%);
+    color: hsl(0 0% 98%);
+  }
 }
 
 @layer base {
