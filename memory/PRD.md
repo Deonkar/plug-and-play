@@ -200,3 +200,7 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 - Landing demo section retitled from "Not a screenshot / A live walkthrough" → **"Live product tour / Watch it work in real environments."**
 - Subheads: "Inside a customer's CRM." → **"Dropped into any CRM. One floating widget — the rest of your team's workflow doesn't move an inch."**
 - "The admin console." → **"One console for the whole team. Monitor spend, set per-agent quotas, and feed the bot new context — without leaving this screen."**
+
+## Update — Session 15 (Jan 2026) — Public Playground
+- ✅ **Backend `POST /api/public/playground`** — unauthenticated endpoint that impersonates the seeded demo agent Alice (3 leads / 3 tasks), builds a normal system prompt, and streams back a Claude Sonnet 4.6 answer. IP-based rate limit of 15 msgs/hr enforced via `db.playground_logs`. Returns `{answer, session_id, remaining}`.
+- ✅ **`PlaygroundWidget` on marketing pages** — mounted inside `MarketingLayout` so it appears on every public page. Bottom-right orange FAB "Try it live" → glass panel with 3 suggestion prompts, real markdown-rendered replies, live "N left this hour" counter, seeded-data disclaimer. Verified: sending "What urgent tasks?" returned a scoped answer citing `task-01 · Northwind Traders (lead-01)`.

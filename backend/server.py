@@ -1001,6 +1001,60 @@ async def services_estimate(inp: ServicesEstimateIn):
     return {"ok": True}
 
 
+# --------- Public playground chat (no auth, seeded demo tenant) ---------
+class PlaygroundIn(BaseModel):
+    message: str
+    session_id: Optional[str] = None
+
+
+@api.post("/public/playground")
+async def public_playground(inp: PlaygroundIn, request: Request):
+    ip = request.client.host if request.client else "unknown"
+    # rate-limit: 15 messages / hour / IP
+    since = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    count = await db.playground_logs.count_documents({"ip": ip, "created_at": {"$gte": since}})
+    if count >= 15:
+        raise HTTPException(429, "Playground limit reached (15/hr). Sign up for unlimited access.")
+
+    message = inp.message.strip()
+    if not message:
+        raise HTTPException(400, "Empty message")
+    if len(message) > 500:
+        raise HTTPException(400, "Message too long")
+
+    company_id = "demo-company"
+    # Impersonate Alice (agent w/ 3 leads) — scope enforced via query
+    demo_user = await db.users.find_one({"id": "user-agent-1"}, {"_id": 0})
+    if not demo_user:
+        raise HTTPException(500, "Demo tenant not seeded")
+
+    context_docs = await db.context_docs.find({"company_id": company_id}, {"_id": 0}).to_list(200)
+    leads = await db.leads.find({"company_id": company_id, "assigned_to": demo_user["id"]}, {"_id": 0}).to_list(50)
+    tasks = await db.tasks.find({"company_id": company_id, "assigned_to": demo_user["id"]}, {"_id": 0}).to_list(50)
+    system_prompt = build_system_prompt(context_docs, demo_user, leads, tasks)
+
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    session_id = inp.session_id or str(uuid.uuid4())
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"playground-{ip}-{session_id}",
+        system_message=system_prompt,
+    ).with_model("anthropic", "claude-sonnet-4-6")
+    try:
+        answer = await chat.send_message(UserMessage(text=message))
+    except Exception as e:
+        raise HTTPException(500, f"LLM error: {e}")
+
+    tokens = max(1, (len(system_prompt) + len(message) + len(answer)) // 4)
+    await db.playground_logs.insert_one({
+        "id": str(uuid.uuid4()), "ip": ip, "session_id": session_id,
+        "message": message, "answer": answer, "tokens": tokens,
+        "created_at": now_iso(),
+    })
+    remaining = max(0, 15 - count - 1)
+    return {"answer": answer, "session_id": session_id, "remaining": remaining}
+
+
 @api.get("/services/mine")
 async def get_services(user=Depends(current_user)):
     c = await db.companies.find_one({"id": user["company_id"]}, {"_id": 0})

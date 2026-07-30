@@ -5,6 +5,7 @@ import { Menu, X, Mail, Github, Linkedin, Twitter } from "lucide-react";
 import Logo from "../Logo";
 import CursorGlow from "../CursorGlow";
 import ThemeToggle from "../ThemeToggle";
+import PlaygroundWidget from "../PlaygroundWidget";
 
 const NAV_MAIN = [
   { to: "/how", label: "How" },
@@ -81,6 +82,9 @@ export default function MarketingLayout({ children, hideCursorGlow = false }) {
       </AnimatePresence>
 
       <main className="relative z-10">{children}</main>
+
+      {/* Public playground — try it live without signup */}
+      <PlaygroundWidget />
 
       {/* FOOTER — proper columns + socials */}
       <footer className="relative z-10 px-6 md:px-16 pt-16 pb-10 border-t border-border mt-16 bg-card">
