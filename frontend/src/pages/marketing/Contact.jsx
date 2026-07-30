@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Mail, MessageSquare, Send, Check, Github, Linkedin, BookOpen } from "lucide-react";
 import MarketingLayout from "../../components/marketing/MarketingLayout";
 import api from "../../lib/api";
+import publicApi from "../../lib/publicApi";
 
 export default function Contact() {
   const [form, setForm] = useState({ name: "", email: "", company: "", message: "" });
@@ -12,7 +13,7 @@ export default function Contact() {
     e.preventDefault();
     setState({ loading: true, ok: false, err: "" });
     try {
-      await api.post("/public/contact", form);
+      await publicApi.post("/public/contact", form);
       setState({ loading: false, ok: true, err: "" });
       setForm({ name: "", email: "", company: "", message: "" });
     } catch (er) {

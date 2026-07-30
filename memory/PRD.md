@@ -399,3 +399,65 @@ Ran the security audit against the deployed app. Verdict: **FAIL — action requ
 - **Prompt cost estimator** in chat input ("≈ 240 tokens · $0.001")
 - **Bulk actions in CRM** (checkbox rows → reassign / close / escalate multiple at once)
 
+
+## Update — Session 21 (Feb 2026) — Backend Refactor + Event Log + Async Queue + Anonymous Sessions
+Full modular rewrite of the monolithic `server.py` (1890 lines → **54 lines**). Backend now follows proper Python package structure with DRY helpers, service layer, per-domain routes, and auditable event log.
+
+### New file layout (`/app/backend/`)
+```
+server.py              # 54 lines — app entry, CORS, lifespan (startup workers + seed + periodic prune)
+config.py              # env vars in one place, fail-fast on missing required keys
+database.py            # motor client singleton
+logger.py              # structured Python logger
+seed.py                # demo tenant seeding (env-gated by SEED_DEMO_DATA)
+models/                # Pydantic input models grouped by domain
+auth/                  # jwt_utils, password (bcrypt), deps (current_user / current_anonymous / require_role), throttle
+helpers/               # time_helper, filter_helper (safe_regex + query builders), tree_helper, populate_helper
+services/              # event_service (audit log), queue_service (async workers), slack_service, llm_service
+routes/                # auth, users, crm (leads+tasks), context, chat, admin, settings, public — one router per file
+```
+
+### Async job queue (`services/queue_service.py`)
+- In-process `asyncio.Queue` with N configurable workers (default 2), started on FastAPI `lifespan` startup
+- Public API: `await enqueue(fn, *args)` — non-blocking fire-and-forget. One automatic retry, then logged + swallowed
+- `enqueue_periodic(fn, seconds)` for recurring jobs — used for nightly `prune_old_events`
+- Slack pings are now enqueued (not awaited) so /escalations returns in <50ms even on flaky Slack
+- **Design note**: When Redis + Celery are provisioned, only this file changes — callers stay identical
+
+### Event log (audit trail)
+- New collection `event_logs` — every meaningful action goes through `log_event(type, actor_id, company_id, meta)`
+- Auto-purged after `EVENT_LOG_RETENTION_DAYS` (default 90) by the queue's periodic worker
+- Types wired so far: `user.registered/login/login_failed/logout/blocked/created/limit_set/usage_reset/department_set`, `lead.created/escalated`, `task.created/escalated`, `context.doc_created/updated/deleted/toggled/files_uploaded/ingested/tree_toggled/tree_deleted`, `settings.updated`, `chat.sent`, `public.session_issued/playground_used/contact_submitted/waitlist_joined/estimate_submitted`
+- New admin endpoint `GET /api/admin/events?range=7d&types=user.login,chat.sent`
+
+### Anonymous session token (no more truly-public endpoints)
+- New `POST /api/public/session` issues a 30-min IP-bound JWT with `kind: anon`
+- All `/api/public/*` endpoints now require this token via `Depends(current_anonymous)`
+- New `frontend/src/lib/publicApi.js` — axios instance that transparently fetches + caches the anon token, retries once on 401
+- Playground, contact, waitlist, services-estimate all migrated to `publicApi`
+- Verified: `POST /public/playground` without token → 401; with fresh anon token → 200
+
+### DRY improvements (as explicitly requested)
+| Helper | What was duplicated → now single source |
+|---|---|
+| `helpers/filter_helper.py::safe_regex` | Escape + cap user text before `$regex` — was inline in 3 routes |
+| `helpers/filter_helper.py::build_lead_query` / `build_task_query` / `build_chat_history_match` / `build_analytics_match` | 4 query builders — every filter endpoint calls one of these |
+| `helpers/tree_helper.py::build_tree / walk_nodes / apply_inclusion_flags / tree_diff / tree_included_paths / tree_included_chars / toggle_node_in_tree` | Every tree-shaped operation |
+| `helpers/populate_helper.py::attach_department_to_chats / enrich_tree_with_docs / group_chats_by_department` | Post-fetch enrichers |
+| `services/llm_service.py::build_system_prompt / cache_key / get_llm_provider_settings` | LLM plumbing pulled out of chat routes |
+| `services/slack_service.py::is_valid_slack_webhook / send_slack` | Webhook validation was inline in 2 places |
+| `auth/deps.py::current_user / current_anonymous / require_role / user_to_out` | Every route uses these — auth guarantee in one file |
+
+### Verified end-to-end
+- Backend: `/health`, `/auth/login`, `/auth/me`, `/leads?status=hot`, `/context/trees`, `/admin/events` all 200
+- Event log records `user.login` with actor `Ava Admin` and `user.login_failed` with IP on wrong password
+- Anonymous session: `/public/session` → JWT → `/public/playground` → 200; without token → 401
+- Frontend: landing playground works (14 remaining after 1 message), CRM shows custom_fields chips, zero page errors
+
+### Backlog / Next
+- Split Pydantic models into one file per entity under `models/` (currently grouped in `models/__init__.py`)
+- Swap `queue_service` in-process backend for **Celery + Redis** when the broker is provisioned
+- Ingest service extraction (`services/ingest_service.py`) — currently the LLM call remains inline in `routes/context.py`
+- Frontend `/app/events` admin page to render the new event log
+- Direct GitHub URL Ingest, Command Palette, Real Resend, Real Stripe (still pending)
+

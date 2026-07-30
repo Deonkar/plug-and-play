@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { MessageSquare, X, Send, Sparkles, ArrowRight } from "lucide-react";
 import api from "../lib/api";
+import publicApi from "../lib/publicApi";
 import { cn } from "@/lib/utils";
 
 /**
@@ -41,7 +42,7 @@ export default function PlaygroundWidget() {
     setMessages((m) => [...m, { role: "user", text: q }]);
     setInput(""); setBusy(true);
     try {
-      const { data } = await api.post("/public/playground", { message: q, session_id: sessionId });
+      const { data } = await publicApi.post("/public/playground", { message: q, session_id: sessionId });
       if (data.session_id) setSessionId(data.session_id);
       setRemaining(data.remaining);
       setMessages((m) => [...m, { role: "assistant", text: data.answer }]);

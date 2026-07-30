@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check, Clock, Sparkles, Plus, Minus } from "lucide-react";
 import MarketingLayout from "../../components/marketing/MarketingLayout";
 import api from "../../lib/api";
+import publicApi from "../../lib/publicApi";
 
 export default function Pricing() {
   const [email, setEmail] = useState("");
@@ -11,7 +12,7 @@ export default function Pricing() {
     e.preventDefault();
     setState({ loading: true, ok: false, err: "" });
     try {
-      await api.post("/public/waitlist", { email });
+      await publicApi.post("/public/waitlist", { email });
       setState({ loading: false, ok: true, err: "" });
       setEmail("");
     } catch (er) {

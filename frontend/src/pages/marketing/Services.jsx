@@ -5,6 +5,7 @@ import { Check, Sparkles, ArrowRight } from "lucide-react";
 import MarketingLayout from "../../components/marketing/MarketingLayout";
 import AddOnPicker, { useAddonSet } from "../../components/AddOnPicker";
 import api from "../../lib/api";
+import publicApi from "../../lib/publicApi";
 
 export default function Services() {
   const [picked, setPicked] = useAddonSet(["byok", "slack"]);
@@ -16,7 +17,7 @@ export default function Services() {
     if (picked.size === 0) { setState({ loading: false, ok: false, err: "Pick at least one service" }); return; }
     setState({ loading: true, ok: false, err: "" });
     try {
-      await api.post("/public/services-estimate", {
+      await publicApi.post("/public/services-estimate", {
         email: form.email,
         note: form.note,
         services: Array.from(picked),
