@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { MessageSquare, X, Send, Sparkles, Copy, Check, Minimize2, Zap } from "lucide-react";
+import { MessageSquare, X, Send, Sparkles, Copy, Check, Minimize2, Zap, Mic, Square } from "lucide-react";
 import api from "../lib/api";
 import { cn } from "@/lib/utils";
 
@@ -12,13 +12,86 @@ export default function ChatWidget() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [sessionId, setSessionId] = useState(null);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [micError, setMicError] = useState("");
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
+  const mediaRecRef = useRef(null);
+  const chunksRef = useRef([]);
+  const streamRef = useRef(null);
 
   useEffect(() => {
     if (open && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     if (open) inputRef.current?.focus();
   }, [messages, open]);
+
+  useEffect(() => () => stopStream(), []);
+
+  const stopStream = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const startRecording = async () => {
+    setMicError("");
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+      setMicError("Mic not supported in this browser");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : (MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "");
+      const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+      chunksRef.current = [];
+      rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      rec.onstop = async () => {
+        stopStream();
+        const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
+        chunksRef.current = [];
+        if (blob.size < 1000) { setMicError("Too short, hold to speak."); return; }
+        await sendAudioForTranscription(blob);
+      };
+      rec.start();
+      mediaRecRef.current = rec;
+      setRecording(true);
+    } catch (e) {
+      setMicError("Mic permission denied");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecRef.current && mediaRecRef.current.state !== "inactive") {
+      mediaRecRef.current.stop();
+    }
+    setRecording(false);
+  };
+
+  const sendAudioForTranscription = async (blob) => {
+    setTranscribing(true);
+    try {
+      const form = new FormData();
+      const ext = (blob.type.includes("webm") ? "webm" : "wav");
+      form.append("file", blob, `voice.${ext}`);
+      const { data } = await api.post("/voice/transcribe", form, { headers: { "Content-Type": "multipart/form-data" } });
+      const text = (data.text || "").trim();
+      if (text) {
+        setInput(text);
+        setTimeout(() => send(text), 60);
+      } else {
+        setMicError("Didn't catch that. Try again.");
+      }
+    } catch (e) {
+      setMicError("Transcription failed");
+    } finally { setTranscribing(false); }
+  };
+
+  const toggleMic = () => { if (recording) stopRecording(); else startRecording(); };
 
   const send = async (override) => {
     const q = (override ?? input).trim();
@@ -148,6 +221,21 @@ export default function ChatWidget() {
 
             {/* INPUT */}
             <div className="p-3 border-t border-white/10 bg-gradient-to-t from-black/40 to-transparent">
+              {(recording || transcribing || micError) && (
+                <div className="flex items-center gap-2 text-[11px] font-mono mb-2" data-testid="mic-status">
+                  {recording && (
+                    <>
+                      <span className="relative flex w-2 h-2">
+                        <span className="absolute inset-0 rounded-full bg-primary animate-ping" />
+                        <span className="relative inline-flex rounded-full w-2 h-2 bg-primary" />
+                      </span>
+                      <span className="text-primary">Recording... tap mic to stop</span>
+                    </>
+                  )}
+                  {transcribing && <span className="text-muted-foreground">Transcribing audio...</span>}
+                  {micError && !recording && !transcribing && <span className="text-primary">! {micError}</span>}
+                </div>
+              )}
               <div className="flex items-end gap-2 border border-white/10 focus-within:border-primary/60 bg-black/40 px-3 py-2 transition-colors">
                 <textarea
                   ref={inputRef}
@@ -157,16 +245,31 @@ export default function ChatWidget() {
                     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
                   }}
                   rows={1}
-                  placeholder="Ask about your leads, tasks..."
+                  placeholder={recording ? "Listening..." : "Ask about your leads, tasks..."}
                   className="flex-1 bg-transparent outline-none text-sm resize-none max-h-32 leading-snug placeholder:text-muted-foreground"
                   data-testid="chat-input"
+                  disabled={recording || transcribing}
                 />
                 <button
+                  onClick={toggleMic}
+                  disabled={busy || transcribing}
+                  className={cn(
+                    "shrink-0 p-2 border transition-colors",
+                    recording
+                      ? "bg-primary text-white border-primary"
+                      : "border-white/10 text-muted-foreground hover:text-primary hover:border-primary/60"
+                  )}
+                  title={recording ? "Stop" : "Voice message"}
+                  data-testid="chat-mic"
+                >
+                  {recording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </button>
+                <button
                   onClick={() => send()}
-                  disabled={busy || !input.trim()}
+                  disabled={busy || !input.trim() || recording || transcribing}
                   className={cn(
                     "shrink-0 p-2 transition-all",
-                    input.trim() && !busy
+                    input.trim() && !busy && !recording && !transcribing
                       ? "bg-primary text-white hover:brightness-110"
                       : "bg-white/5 text-muted-foreground cursor-not-allowed"
                   )}
@@ -176,8 +279,8 @@ export default function ChatWidget() {
                 </button>
               </div>
               <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-muted-foreground/70">
-                <span>Enter to send · Shift+Enter for newline</span>
-                <span>Claude Sonnet 4.6</span>
+                <span>Enter to send · hold mic to speak</span>
+                <span>Claude Sonnet 4.6 · Whisper</span>
               </div>
             </div>
           </motion.div>

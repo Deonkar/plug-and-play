@@ -75,3 +75,9 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 - ✅ **Responsive dashboard** — mobile top bar + slide-in drawer (framer-motion), tables scroll horizontally, chat widget goes full-width on <md
 - ✅ Added markdown styling (.chat-md) for bold/lists/code/headings/tables/blockquotes/hr with brand color
 - Deps added: `react-markdown`, `remark-gfm`
+
+## Update — Session 4 (Jan 2026) — Voice Input
+- ✅ **Mic button in chat widget** — click to start/stop; MediaRecorder captures audio/webm; posted as multipart to `/api/voice/transcribe`; transcribed text auto-fills input AND auto-sends
+- ✅ **Backend `/api/voice/transcribe`** — Whisper-1 via `OpenAISpeechToText` from emergentintegrations; 25MB cap; JWT-protected
+- ✅ Live "Recording... tap mic to stop" status with pulsing red dot; "Transcribing..." indicator; graceful mic-permission errors
+- ✅ Footer updated to "Claude Sonnet 4.6 · Whisper"

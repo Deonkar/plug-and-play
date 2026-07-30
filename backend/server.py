@@ -896,6 +896,33 @@ async def root():
     return {"service": "Company OS", "ok": True}
 
 
+# --------- Voice transcription (STT) ---------
+@api.post("/voice/transcribe")
+async def transcribe_voice(file: UploadFile = File(...), user=Depends(current_user)):
+    from emergentintegrations.llm.openai import OpenAISpeechToText
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(500, "STT not configured")
+    # Whisper accepts webm/mp3/wav; browsers usually send webm from MediaRecorder
+    filename = file.filename or "voice.webm"
+    contents = await file.read()
+    if len(contents) == 0:
+        raise HTTPException(400, "Empty audio")
+    if len(contents) > 25 * 1024 * 1024:
+        raise HTTPException(400, "Audio too large (>25MB)")
+    stt = OpenAISpeechToText(api_key=EMERGENT_LLM_KEY)
+    # Pass a file-like object with a name attribute so the SDK infers mimetype
+    import io
+    buf = io.BytesIO(contents)
+    buf.name = filename
+    try:
+        resp = await stt.transcribe(file=buf, model="whisper-1", response_format="json")
+    except Exception as e:
+        logger.exception("STT error")
+        raise HTTPException(500, f"Transcription failed: {e}")
+    text = getattr(resp, "text", None) or (resp.get("text") if isinstance(resp, dict) else "")
+    return {"text": text or ""}
+
+
 app.include_router(api)
 
 app.add_middleware(
