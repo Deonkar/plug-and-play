@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import MarketingLayout from "../components/marketing/MarketingLayout";
 import CRMDemo from "../components/demo/CRMDemo";
-import AdminDemo from "../components/demo/AdminDemo";
+import AdminReel from "../components/demo/AdminReel";
 import HeroDemo from "../components/demo/HeroDemo";
 import MdToChat from "../components/MdToChat";
 
@@ -132,10 +132,10 @@ export default function Landing() {
               transition={{ duration: 0.7 }}
             >
               <div className="mb-8 text-center max-w-xl mx-auto">
-                <div className="font-display font-bold text-2xl md:text-3xl">One console for the whole team.</div>
-                <p className="text-muted-foreground text-sm mt-2">Monitor spend, set per-agent quotas, and feed the bot new context — without leaving this screen.</p>
+                <div className="font-display font-bold text-2xl md:text-3xl">The full admin loop, in 30 seconds.</div>
+                <p className="text-muted-foreground text-sm mt-2">A live capture of the console — analytics, quotas, context ingestion, and a scoped agent chat. Loops until you sign up.</p>
               </div>
-              <AdminDemo />
+              <AdminReel />
             </motion.div>
           </div>
         </div>
