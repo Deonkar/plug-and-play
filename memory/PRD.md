@@ -66,3 +66,12 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 - P2: Node/CLI companion (`companyos-cli ingest ./`) so a real codebase is walked from a build step
 - P2: Password reset + email verification
 - P2: Real (not heuristic) token counts from LLM metadata
+
+## Update — Session 3 (Jan 2026) — UI/UX Polish
+- ✅ **Cursor-follower glow** — CursorGlow component with delayed inertia (radial gradient trail + mix-blend dot)
+- ✅ **Chat widget V2** — Framer Motion in/out animations, markdown rendering (react-markdown + remark-gfm), textarea with Enter/Shift+Enter, copy button per message, cache/token badge, new-chat button, empty-state suggestions with icons, responsive full-screen on mobile
+- ✅ **Landing V2** — Hero with staggered motion, marquee tech strip, "3 moves" how-it-works, bento feature grid, use cases, stack tiles, FAQ, big CTA card
+- ✅ **Reusable components** — Badge, StatCard, PageHeader, CursorGlow (composed under /components/ui and /components)
+- ✅ **Responsive dashboard** — mobile top bar + slide-in drawer (framer-motion), tables scroll horizontally, chat widget goes full-width on <md
+- ✅ Added markdown styling (.chat-md) for bold/lists/code/headings/tables/blockquotes/hr with brand color
+- Deps added: `react-markdown`, `remark-gfm`
