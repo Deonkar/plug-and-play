@@ -88,3 +88,12 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 - ✅ **BrowserFrame** reusable component (traffic lights + URL bar + live indicator)
 - ✅ Added "Demo" nav link and a "See it running" landing section between How-it-works and the bento grid
 - Pure CSS/Framer Motion (no video files), zero bandwidth cost
+
+## Update — Session 6 (Jan 2026) — Marketing Split + Protected API Docs + Logo
+- ✅ **New pages** — `/how` (in-depth 3-step walkthrough + 4-system detail), `/stack` (grouped Backend / AI+Voice / Frontend / Infra tiles), `/faq` (accordion), `/reference` (API docs)
+- ✅ **`/reference` is auth-protected** — anonymous → `/login?next=/reference`; supports `?next=` redirect after login
+- ✅ **Reusable `MarketingLayout`** with unified nav (with active-route hint), CTA buttons, mobile drawer, footer
+- ✅ **SVG Logo** component (mark + wordmark variants) used in nav, mobile drawers, dashboard sidebar, login/register pages, and as inline SVG favicon
+- ✅ Landing trimmed to hero + marquee + bento + live demos + CTA (heavier content moved to dedicated pages)
+- ✅ Renamed API docs route from `/api-docs` → `/reference` (avoids ingress `/api*` → backend collision)
+- ✅ Page `<title>` updated to "Company/OS — the chatbot that knows your business"

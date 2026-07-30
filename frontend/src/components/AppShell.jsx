@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import ChatWidget from "./ChatWidget";
 import Badge from "./ui/pill";
+import Logo from "./Logo";
 
 export default function AppShell() {
   const { user, logout } = useAuth();
@@ -32,11 +33,8 @@ export default function AppShell() {
 
   const brand = (
     <div className="px-4 py-5 border-b border-border">
-      <div className="flex items-center gap-2 font-display font-bold text-sm" data-testid="sidebar-brand">
-        <span className="inline-block w-2 h-2 bg-primary animate-pulse" />
-        COMPANY/OS
-      </div>
-      <div className="mt-1 text-[10px] font-mono uppercase text-muted-foreground truncate">{user?.company_name}</div>
+      <Logo size={18} testid="sidebar-brand" />
+      <div className="mt-1.5 text-[10px] font-mono uppercase text-muted-foreground truncate">{user?.company_name}</div>
     </div>
   );
 
@@ -54,9 +52,7 @@ export default function AppShell() {
     <div className="min-h-screen flex bg-background">
       {/* MOBILE TOP BAR */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3 border-b border-border bg-background/80 backdrop-blur">
-        <div className="flex items-center gap-2 font-display font-bold text-sm">
-          <span className="inline-block w-2 h-2 bg-primary" /> COMPANY/OS
-        </div>
+        <Logo size={16} />
         <button onClick={()=>setMobileOpen(true)} className="p-1.5" data-testid="mobile-menu-open">
           <Menu className="w-5 h-5"/>
         </button>
@@ -82,7 +78,7 @@ export default function AppShell() {
               data-testid="mobile-drawer"
             >
               <div className="flex items-center justify-between px-4 py-4 border-b border-border">
-                <div className="font-display font-bold text-sm">COMPANY/OS</div>
+                <Logo size={16} />
                 <button onClick={closeMobile} data-testid="mobile-menu-close"><X className="w-5 h-5"/></button>
               </div>
               <nav className="flex-1 py-3 flex flex-col overflow-y-auto">{links}</nav>

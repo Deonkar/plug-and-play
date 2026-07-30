@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import Logo from "../components/Logo";
 
 export default function Register() {
   const { register } = useAuth();
@@ -23,7 +24,8 @@ export default function Register() {
   return (
     <div className="min-h-screen grain relative flex items-center justify-start px-8 md:px-24">
       <div className="w-full max-w-md relative z-10">
-        <Link to="/" className="font-mono text-xs text-muted-foreground mb-8 inline-block">← back</Link>
+        <div className="mb-8"><Logo /></div>
+        <Link to="/" className="font-mono text-xs text-muted-foreground mb-6 inline-block">← back</Link>
         <h1 className="font-display font-black text-4xl mb-2">Create workspace.</h1>
         <p className="text-muted-foreground text-sm mb-8 font-mono">// you become the super_admin</p>
         <form onSubmit={submit} className="space-y-4" data-testid="register-form">

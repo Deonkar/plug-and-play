@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import Logo from "../components/Logo";
 
 export default function Login() {
   const { login } = useAuth();
   const nav = useNavigate();
+  const [params] = useSearchParams();
+  const next = params.get("next") || "/app";
   const [email, setEmail] = useState("admin@acme.demo");
   const [password, setPassword] = useState("admin123");
   const [err, setErr] = useState("");
@@ -15,14 +18,15 @@ export default function Login() {
     setErr(""); setLoading(true);
     const r = await login(email, password);
     setLoading(false);
-    if (r.ok) nav("/app");
+    if (r.ok) nav(next);
     else setErr(r.error);
   };
 
   return (
     <div className="min-h-screen grain relative flex items-center justify-start px-8 md:px-24">
       <div className="w-full max-w-md relative z-10">
-        <Link to="/" className="font-mono text-xs text-muted-foreground mb-8 inline-block" data-testid="back-home">← back</Link>
+        <div className="mb-8"><Logo /></div>
+        <Link to="/" className="font-mono text-xs text-muted-foreground mb-6 inline-block" data-testid="back-home">← back</Link>
         <h1 className="font-display font-black text-4xl mb-2">Sign in.</h1>
         <p className="text-muted-foreground text-sm mb-8 font-mono">// authenticate to your Company/OS</p>
         <form onSubmit={submit} className="space-y-4" data-testid="login-form">
