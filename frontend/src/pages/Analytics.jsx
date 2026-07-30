@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import api from "../lib/api";
+import FilterBar from "../components/FilterBar";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   LineChart, Line, Legend, PieChart, Pie, Cell, AreaChart, Area,
@@ -7,23 +8,39 @@ import {
 
 const PALETTE = ["hsl(15 100% 50%)", "hsl(0 0% 60%)", "hsl(30 90% 55%)", "hsl(0 0% 35%)"];
 
+const RANGE_FIELDS = [
+  { key: "range", label: "Range", options: [
+    { value: "7d",  label: "7d"  },
+    { value: "14d", label: "14d" },
+    { value: "30d", label: "30d" },
+    { value: "all", label: "all" },
+  ]},
+];
+
 export default function Analytics() {
   const [d, setD] = useState(null);
   const [users, setUsers] = useState([]);
   const [esc, setEsc] = useState(null);
+  const [filters, setFilters] = useState({ range: "14d" });
 
-  useEffect(() => {
-    (async () => {
-      const [an, u, e] = await Promise.all([
-        api.get("/analytics/overview").catch(()=>({ data: null })),
-        api.get("/users").catch(()=>({ data: [] })),
-        api.get("/escalations").catch(()=>({ data: { tasks: [], leads: [], total: 0 }})),
-      ]);
-      setD(an.data); setUsers(u.data); setEsc(e.data);
-    })();
-  }, []);
+  const load = useCallback(async () => {
+    const qs = new URLSearchParams(Object.fromEntries(Object.entries(filters).filter(([, v]) => v))).toString();
+    const [an, u, e] = await Promise.all([
+      api.get(`/analytics/overview${qs ? "?" + qs : ""}`).catch(() => ({ data: null })),
+      api.get("/users").catch(() => ({ data: [] })),
+      api.get("/escalations").catch(() => ({ data: { tasks: [], leads: [], total: 0 } })),
+    ]);
+    setD(an.data); setUsers(u.data); setEsc(e.data);
+  }, [filters]);
+  useEffect(() => { load(); }, [load]);
 
   if (!d) return <div className="p-8 text-muted-foreground">Loading...</div>;
+
+  const userOptions = users.filter((u) => u.role !== "super_admin").map((u) => ({ value: u.id, label: u.name.split(" ")[0] }));
+  const FIELDS = [
+    ...RANGE_FIELDS,
+    { key: "user_id", label: "User", options: userOptions },
+  ];
 
   const totalTokensIn = d.per_user.reduce((s, u) => s + (u.tokens_in || 0), 0);
   const totalTokensOut = d.per_user.reduce((s, u) => s + (u.tokens_out || 0), 0);
@@ -45,6 +62,10 @@ export default function Analytics() {
         <div className="font-mono text-xs uppercase text-muted-foreground mb-1">// analytics</div>
         <h1 className="font-display font-black text-4xl">Insights</h1>
         <p className="text-muted-foreground text-sm mt-2">Everything about spend, cache health, quotas, escalations and the questions your team asks most.</p>
+      </div>
+
+      <div className="mb-4">
+        <FilterBar fields={FIELDS} filters={filters} onChange={setFilters} testid="filters-analytics" />
       </div>
 
       {/* Row 1: KPI cards */}

@@ -1,9 +1,11 @@
 import { useEffect, useState, useRef } from "react";
 import api from "../lib/api";
 import { UploadCloud, Github } from "lucide-react";
+import ContextTree from "../components/ContextTree";
 
 export default function Context() {
   const [docs, setDocs] = useState([]);
+  const [trees, setTrees] = useState([]);
   const [editing, setEditing] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [ingestOpen, setIngestOpen] = useState(false);
@@ -12,7 +14,13 @@ export default function Context() {
   const fileInputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
 
-  const load = async () => { const { data } = await api.get("/context"); setDocs(data); };
+  const load = async () => {
+    const [d, t] = await Promise.all([
+      api.get("/context"),
+      api.get("/context/trees").catch(() => ({ data: [] })),
+    ]);
+    setDocs(d.data); setTrees(t.data);
+  };
   useEffect(() => { load(); }, []);
 
   const empty = { id: null, title: "", content: "", kind: "product" };
@@ -82,6 +90,25 @@ export default function Context() {
       </div>
       {uploading && <div className="text-xs font-mono text-muted-foreground mb-4" data-testid="upload-status">Uploading...</div>}
       {msg && <div className="text-xs font-mono text-primary mb-4" data-testid="upload-msg">{msg}</div>}
+
+      {/* INGESTED REPO TREES */}
+      {trees.length > 0 && (
+        <div className="mb-8 space-y-4" data-testid="ingested-trees">
+          <div className="flex items-baseline justify-between">
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary mb-1">/// ingested repos</div>
+              <h2 className="font-display font-bold text-xl">What the bot actually sees</h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                Toggle a doc off to shrink the system prompt and save tokens on every chat.
+              </p>
+            </div>
+            <div className="font-mono text-[10px] text-muted-foreground">{trees.length} repo{trees.length > 1 ? "s" : ""}</div>
+          </div>
+          {trees.map((t) => (
+            <ContextTree key={t.repo_name} tree={t} onChanged={load} />
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-6">
         <div className="space-y-3">

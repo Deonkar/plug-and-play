@@ -216,3 +216,52 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 - Real Resend integration for contact form (blocked on API key)
 - Real Stripe checkout (currently UI-only order flow)
 - `server.py` split into routers (approaching 1000 lines)
+
+
+## Update — Session 17 (Feb 2026) — Internal Panel Overhaul (Overview + Context Tree + Filters)
+### Overview page redesigned (was vague 3-card layout)
+- New `GET /api/overview` — aggregates KPIs, "attention" feed, pipeline funnel, priority mix, personal quota, recent chat activity in one call, scoped per-user
+- Personalized greeting + 5 KPI cards: Open tasks · Overdue · Urgent · Hot leads · My quota % (with live progress bar and orange when >90%)
+- **Needs your attention** feed merges: escalated tasks + overdue tasks + hot leads gone cold (>48h no touch); links straight to CRM/Tasks
+- **My pipeline** funnel — leads per stage (new/qualified/proposal/negotiation/hot/closed) with animated bars + task priority mix badges
+- **Recent activity** timeline — last 6 assistant chats with `cached` badges; **Quick asks** panel dispatches `cos:ask-assistant` custom event
+
+### Context tree with include/exclude toggle (post-ingest visibility + token savings)
+- New Mongo collection `context_trees` — persisted alongside auto-ingested docs; stores `tree` (nested `{name, path, size, kind, children}`), `file_count`, `total_chars`
+- `POST /api/context/ingest` now builds & upserts the tree using new `_build_tree()` helper, stamps `repo_name` + `included=True` on each generated doc
+- `GET /api/context/trees` returns each repo + its 3 auto-docs with `chars` + `included` so the UI can render live counters
+- `PATCH /api/context/{doc_id}/toggle` flips a doc's `included` flag; `build_system_prompt` skips `included=False` docs → real token savings on every chat
+- Frontend `<ContextTree>` component (in `/app/frontend/src/components/ContextTree.jsx`) — repo header + system-prompt weight (`≈ N tokens`) + "−X tokens saved" indicator; per-doc toggle chip (INCLUDED/EXCLUDED with strike-through); expandable file tree with folder chevrons, sizes, and file counts
+- **Recursive-JSX babel bug worked around** by flattening the tree into an iterative flat list (`flattenTree` + `<TreeRow>`) — recursive components were triggering babel-loader infinite traversal
+- Seeded demo tree `acme-crm-app` (18 files across backend/frontend/docs) + 3 auto-docs (Architecture / Schema / Module Map) available on every fresh seed via idempotent `_seed_demo_tree()`
+
+### Backend-driven filters (Analytics + CRM)
+- `GET /api/leads?status=&priority=&assigned_to=&escalated=&q=` — DB-side filtering + escalation computed in Python
+- `GET /api/tasks?status=&priority=&assigned_to=&lead_id=&due_before=&overdue=&q=` — same pattern with overdue/text-search
+- `GET /api/analytics/overview?range=7d|14d|30d|all&user_id=` — scopes all aggregates + time-series to the range/user; response echoes `filters`
+- New reusable `<FilterBar>` component (chip-style, kebab-case testids `filter-<key>-<value>`, `filter-clear-all`)
+- **CRM.jsx** — refactored to `useSearchParams` so filter state is URL-persistable (`/app/crm?status=hot`); 4 chip filters for leads, 4 for tasks
+- **Analytics.jsx** — filter bar with Range (7d/14d/30d/all) + User (per non-admin user); re-queries backend on every change
+
+### Endpoints touched
+| Endpoint | Change |
+|---|---|
+| `GET /api/overview` | NEW — aggregated personal dashboard |
+| `GET /api/context/trees` | NEW — list ingested repo trees + docs |
+| `PATCH /api/context/{id}/toggle` | NEW — include/exclude a context doc from the LLM prompt |
+| `GET /api/leads` | now accepts status/priority/assigned_to/escalated/q |
+| `GET /api/tasks` | now accepts status/priority/assigned_to/lead_id/due_before/overdue/q |
+| `GET /api/analytics/overview` | now accepts range/user_id |
+| `POST /api/context/ingest` | also persists file tree + repo_name + included flag on docs |
+
+### Verified via Playwright
+- Overview renders with 5 KPIs + attention feed (4 items) + pipeline (1 New / 2 Hot) + activity (6 cached chats) — no console errors
+- Context tree shows `acme-crm-app` (18 files, ≈ 68 tokens after excluding Schema + Module Map, saved 312 tokens) — toggling Architecture live-updated the counter
+- CRM `?status=hot` returned 2 leads, HOT chip highlighted, "clear (1)" visible
+- Analytics `range=7d` chip filters to 19 msgs / 53% hit-rate / 3 escalations, backend query params confirmed
+
+### Backlog / Next
+- Real Resend integration for contact form (blocked on API key)
+- Real Stripe checkout (currently UI-only order flow)
+- `server.py` split into routers (approaching 1500 lines now)
+- Cmd+K command palette (next high-ROI power-user feature)

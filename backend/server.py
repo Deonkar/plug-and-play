@@ -130,6 +130,10 @@ class ServicesIn(BaseModel):
     services: List[str] = []
 
 
+class ContextToggleIn(BaseModel):
+    included: bool
+
+
 class IngestFile(BaseModel):
     path: str
     content: str
@@ -360,13 +364,100 @@ async def delete_context(doc_id: str, user=Depends(require_role("super_admin", "
     return {"ok": True}
 
 
+@api.patch("/context/{doc_id}/toggle")
+async def toggle_context(doc_id: str, inp: ContextToggleIn, user=Depends(require_role("super_admin", "admin"))):
+    """Include or exclude a context doc from the LLM system prompt (token-saving)."""
+    r = await db.context_docs.update_one(
+        {"id": doc_id, "company_id": user["company_id"]},
+        {"$set": {"included": bool(inp.included), "updated_at": now_iso()}},
+    )
+    if r.matched_count == 0:
+        raise HTTPException(404, "Not found")
+    return {"ok": True, "included": bool(inp.included)}
+
+
+def _build_tree(paths_and_sizes: List[dict]) -> dict:
+    """Turn a flat list of {path, size} into a nested tree {name, path, size, kind, children}."""
+    root = {"name": "root", "path": "", "size": 0, "kind": "dir", "children": {}}
+    for entry in paths_and_sizes:
+        parts = [p for p in entry["path"].split("/") if p]
+        node = root
+        for i, part in enumerate(parts):
+            is_leaf = i == len(parts) - 1
+            if part not in node["children"]:
+                node["children"][part] = {
+                    "name": part,
+                    "path": "/".join(parts[: i + 1]),
+                    "size": 0,
+                    "kind": "file" if is_leaf else "dir",
+                    "children": {},
+                }
+            child = node["children"][part]
+            if is_leaf:
+                child["size"] = entry["size"]
+                child["kind"] = "file"
+            node = child
+        # bubble size up
+    def finalize(n):
+        kids = list(n["children"].values())
+        kids.sort(key=lambda k: (k["kind"] != "dir", k["name"].lower()))
+        for k in kids:
+            finalize(k)
+        n["children"] = kids
+        if n["kind"] == "dir":
+            n["size"] = sum(k["size"] for k in kids)
+    finalize(root)
+    return root
+
+
+@api.get("/context/trees")
+async def list_context_trees(user=Depends(require_role("super_admin", "admin"))):
+    """All ingested repo trees for this company + their linked doc-inclusion state."""
+    trees = await db.context_trees.find({"company_id": user["company_id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    # Attach the linked docs' current included flag & size so the UI can render the counter live.
+    for t in trees:
+        docs = await db.context_docs.find(
+            {"company_id": user["company_id"], "repo_name": t["repo_name"], "source": "auto-ingest"},
+            {"_id": 0, "id": 1, "title": 1, "kind": 1, "included": 1, "content": 1, "updated_at": 1},
+        ).to_list(20)
+        for d in docs:
+            d["chars"] = len(d.get("content") or "")
+            d["included"] = d.get("included", True)
+            d.pop("content", None)
+        t["docs"] = docs
+    return trees
+
+
 # --------- CRM ---------
 @api.get("/leads")
-async def list_leads(user=Depends(current_user)):
-    q = {"company_id": user["company_id"]}
+async def list_leads(
+    user=Depends(current_user),
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
+    assigned_to: Optional[str] = None,
+    escalated: Optional[bool] = None,
+    q: Optional[str] = None,
+):
+    query = {"company_id": user["company_id"]}
     if user["role"] == "agent":
-        q["assigned_to"] = user["id"]
-    leads = await db.leads.find(q, {"_id": 0}).to_list(500)
+        query["assigned_to"] = user["id"]
+    elif assigned_to:
+        query["assigned_to"] = assigned_to
+    if status:
+        query["status"] = status
+    if priority:
+        query["priority"] = priority
+    if q:
+        query["$or"] = [
+            {"name":  {"$regex": q, "$options": "i"}},
+            {"email": {"$regex": q, "$options": "i"}},
+            {"notes": {"$regex": q, "$options": "i"}},
+        ]
+    leads = await db.leads.find(query, {"_id": 0}).to_list(500)
+    if escalated is True:
+        leads = [l for l in leads if is_lead_escalated(l)]
+    elif escalated is False:
+        leads = [l for l in leads if not is_lead_escalated(l)]
     return leads
 
 
@@ -380,11 +471,38 @@ async def create_lead(inp: LeadIn, user=Depends(require_role("super_admin", "adm
 
 
 @api.get("/tasks")
-async def list_tasks(user=Depends(current_user)):
-    q = {"company_id": user["company_id"]}
+async def list_tasks(
+    user=Depends(current_user),
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
+    assigned_to: Optional[str] = None,
+    lead_id: Optional[str] = None,
+    due_before: Optional[str] = None,   # ISO date, filter tasks due on or before
+    overdue: Optional[bool] = None,
+    q: Optional[str] = None,
+):
+    query = {"company_id": user["company_id"]}
     if user["role"] == "agent":
-        q["assigned_to"] = user["id"]
-    tasks = await db.tasks.find(q, {"_id": 0}).to_list(500)
+        query["assigned_to"] = user["id"]
+    elif assigned_to:
+        query["assigned_to"] = assigned_to
+    if status:
+        query["status"] = status
+    if priority:
+        query["priority"] = priority
+    if lead_id:
+        query["lead_id"] = lead_id
+    if due_before:
+        query["due_date"] = {"$lte": due_before}
+    if q:
+        query["$or"] = [
+            {"title":       {"$regex": q, "$options": "i"}},
+            {"description": {"$regex": q, "$options": "i"}},
+        ]
+    tasks = await db.tasks.find(query, {"_id": 0}).to_list(500)
+    if overdue is True:
+        now_s = now_iso()
+        tasks = [t for t in tasks if t.get("status") != "done" and (t.get("due_date") or "") < now_s]
     return tasks
 
 
@@ -418,7 +536,9 @@ def build_system_prompt(context_docs: List[dict], user: dict, leads: List[dict],
         "",
         "=== COMPANY CONTEXT DOCUMENTS ===",
     ]
-    for d in context_docs:
+    # Skip docs the admin has toggled off (default: included=True)
+    active_docs = [d for d in context_docs if d.get("included", True)]
+    for d in active_docs:
         parts.append(f"\n### [{d['kind']}] {d['title']}\n{d['content']}\n")
     parts.append("\n=== USER'S ASSIGNED LEADS ===")
     if not leads:
@@ -558,16 +678,131 @@ async def chat_history(session_id: Optional[str] = None, user=Depends(current_us
 
 
 # --------- Analytics ---------
-@api.get("/analytics/overview")
-async def analytics_overview(user=Depends(require_role("super_admin", "admin"))):
+@api.get("/overview")
+async def personal_overview(user=Depends(current_user)):
+    """One aggregated endpoint that powers the redesigned agent Overview page.
+    Everything is scoped to the current user (agents see only theirs)."""
     cid = user["company_id"]
-    total_msgs = await db.chat_logs.count_documents({"company_id": cid})
-    cache_hits = await db.chat_logs.count_documents({"company_id": cid, "cache_hit": True})
+    now = datetime.now(timezone.utc)
+    now_s = now.isoformat()
+
+    lead_q = {"company_id": cid}
+    task_q = {"company_id": cid}
+    if user["role"] == "agent":
+        lead_q["assigned_to"] = user["id"]
+        task_q["assigned_to"] = user["id"]
+
+    leads = await db.leads.find(lead_q, {"_id": 0}).to_list(500)
+    tasks = await db.tasks.find(task_q, {"_id": 0}).to_list(500)
+
+    open_tasks   = [t for t in tasks if t.get("status") != "done"]
+    urgent_tasks = [t for t in open_tasks if t.get("priority") == "urgent"]
+    overdue      = [t for t in open_tasks if (t.get("due_date") or "") < now_s]
+    hot_leads    = [l for l in leads if l.get("status") == "hot"]
+    stale_hot    = [l for l in hot_leads if is_lead_escalated(l)]
+    escalated_t  = [t for t in urgent_tasks if is_task_escalated(t)]
+
+    # Pipeline funnel per status
+    stages = ["new", "qualified", "proposal", "negotiation", "hot", "closed", "lost"]
+    funnel = []
+    for s in stages:
+        c = sum(1 for l in leads if l.get("status") == s)
+        if c > 0:
+            funnel.append({"stage": s, "count": c})
+
+    # Priority breakdown for open tasks
+    priority_mix = []
+    for p in ["urgent", "high", "medium", "low"]:
+        c = sum(1 for t in open_tasks if t.get("priority") == p)
+        if c > 0:
+            priority_mix.append({"priority": p, "count": c})
+
+    # Merged "attention" feed
+    attention: List[Dict[str, Any]] = []
+    for t in escalated_t:
+        attention.append({
+            "type": "task_escalated", "id": t["id"], "title": t["title"],
+            "priority": t.get("priority", ""), "when": t.get("due_date", ""),
+            "meta": {"lead_id": t.get("lead_id"), "status": t.get("status")},
+        })
+    for t in overdue:
+        if t in escalated_t:  # already surfaced
+            continue
+        attention.append({
+            "type": "task_overdue", "id": t["id"], "title": t["title"],
+            "priority": t.get("priority", ""), "when": t.get("due_date", ""),
+            "meta": {"lead_id": t.get("lead_id"), "status": t.get("status")},
+        })
+    for l in stale_hot:
+        attention.append({
+            "type": "lead_stale", "id": l["id"], "title": l["name"],
+            "priority": l.get("priority", "high"), "when": l.get("last_touched_at") or l.get("created_at", ""),
+            "meta": {"status": l.get("status"), "email": l.get("email")},
+        })
+    # sort by 'when' asc (oldest overdue first)
+    attention.sort(key=lambda x: x.get("when") or "")
+
+    # Recent activity — latest chats + task completions + context updates for this user
+    chat_recent = await db.chat_logs.find(
+        {"company_id": cid, **({"user_id": user["id"]} if user["role"] == "agent" else {})},
+        {"_id": 0, "message": 1, "user_name": 1, "created_at": 1, "cache_hit": 1},
+    ).sort("created_at", -1).to_list(6)
+    activity = [{
+        "type": "chat", "title": c["message"][:90],
+        "meta": {"user": c.get("user_name"), "cache_hit": c.get("cache_hit", False)},
+        "when": c.get("created_at", ""),
+    } for c in chat_recent]
+    activity.sort(key=lambda x: x["when"], reverse=True)
+
+    # Personal quota (agents only carry a limit — admins usually unlimited)
+    me = await db.users.find_one({"id": user["id"]}, {"_id": 0}) or {}
+    quota = {
+        "used":  me.get("token_used", 0),
+        "limit": me.get("token_limit", 0),
+    }
+
+    return {
+        "kpis": {
+            "open_tasks":   len(open_tasks),
+            "urgent_tasks": len(urgent_tasks),
+            "overdue":      len(overdue),
+            "hot_leads":    len(hot_leads),
+            "stale_hot":    len(stale_hot),
+            "leads_total":  len(leads),
+        },
+        "quota": quota,
+        "attention":    attention[:12],
+        "funnel":       funnel,
+        "priority_mix": priority_mix,
+        "activity":     activity[:8],
+    }
+
+
+@api.get("/analytics/overview")
+async def analytics_overview(
+    user=Depends(require_role("super_admin", "admin")),
+    range: str = "14d",           # "7d" | "14d" | "30d" | "all"
+    user_id: Optional[str] = None,
+):
+    cid = user["company_id"]
+    days_map = {"7d": 7, "14d": 14, "30d": 30}
+    days = days_map.get(range)  # None for "all"
+
+    base_match: Dict[str, Any] = {"company_id": cid}
+    if days is not None:
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        base_match["created_at"] = {"$gte": since}
+    if user_id:
+        base_match["user_id"] = user_id
+
+    total_msgs = await db.chat_logs.count_documents(base_match)
+    cache_match = dict(base_match, cache_hit=True)
+    cache_hits = await db.chat_logs.count_documents(cache_match)
     users_count = await db.users.count_documents({"company_id": cid})
 
     # tokens per user
     pipeline = [
-        {"$match": {"company_id": cid}},
+        {"$match": base_match},
         {"$group": {
             "_id": "$user_id",
             "user_name": {"$first": "$user_name"},
@@ -584,7 +819,7 @@ async def analytics_overview(user=Depends(require_role("super_admin", "admin")))
 
     # top prompts
     top_pipeline = [
-        {"$match": {"company_id": cid}},
+        {"$match": base_match},
         {"$group": {"_id": "$message", "count": {"$sum": 1}, "tokens": {"$sum": "$tokens_out"}}},
         {"$sort": {"count": -1}},
         {"$limit": 10},
@@ -592,10 +827,13 @@ async def analytics_overview(user=Depends(require_role("super_admin", "admin")))
     top_prompts = await db.chat_logs.aggregate(top_pipeline).to_list(10)
     top_prompts = [{"message": x["_id"], "count": x["count"], "tokens": x["tokens"]} for x in top_prompts]
 
-    # time series (last 14 days)
-    since = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
+    # time series (respects same range; falls back to 14d cap when "all")
+    ts_days = days if days is not None else 30
+    since = (datetime.now(timezone.utc) - timedelta(days=ts_days)).isoformat()
+    ts_match = dict(base_match)
+    ts_match["created_at"] = {"$gte": since}
     ts_pipeline = [
-        {"$match": {"company_id": cid, "created_at": {"$gte": since}}},
+        {"$match": ts_match},
         {"$group": {"_id": {"$substr": ["$created_at", 0, 10]}, "queries": {"$sum": 1}, "tokens": {"$sum": {"$add": ["$tokens_in", "$tokens_out"]}}}},
         {"$sort": {"_id": 1}},
     ]
@@ -610,6 +848,7 @@ async def analytics_overview(user=Depends(require_role("super_admin", "admin")))
         "per_user": per_user,
         "top_prompts": top_prompts,
         "time_series": ts,
+        "filters": {"range": range, "user_id": user_id},
     }
 
 
@@ -800,6 +1039,8 @@ async def ingest_codebase(inp: IngestIn, user=Depends(require_role("super_admin"
             "created_at": now_iso(),
             "updated_at": now_iso(),
             "source": "auto-ingest",
+            "repo_name": inp.repo_name,
+            "included": True,
         }
         # Upsert by title within company
         await db.context_docs.update_one(
@@ -808,7 +1049,24 @@ async def ingest_codebase(inp: IngestIn, user=Depends(require_role("super_admin"
         )
         doc.pop("_id", None)
         created.append(doc)
-    return {"created": len(created), "docs": created}
+
+    # Persist the file tree so the admin can inspect and prune what was ingested
+    tree = _build_tree([{"path": f.path, "size": len(f.content)} for f in inp.files])
+    total_chars = sum(len(f.content) for f in inp.files)
+    await db.context_trees.update_one(
+        {"company_id": user["company_id"], "repo_name": inp.repo_name},
+        {"$set": {
+            "id": str(uuid.uuid4()),
+            "company_id": user["company_id"],
+            "repo_name": inp.repo_name,
+            "tree": tree,
+            "file_count": len(inp.files),
+            "total_chars": total_chars,
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+        }}, upsert=True,
+    )
+    return {"created": len(created), "docs": created, "file_count": len(inp.files), "total_chars": total_chars}
 
 
 # --------- Settings ---------
@@ -842,10 +1100,13 @@ async def update_settings(inp: SettingsIn, user=Depends(require_role("super_admi
 
 # --------- Seed ---------
 async def seed_demo():
-    if await db.companies.find_one({"id": "demo-company"}):
+    company_id = "demo-company"
+    existing = await db.companies.find_one({"id": company_id})
+    if existing:
+        # Company already seeded — still ensure the demo repo tree exists for the tree feature
+        await _seed_demo_tree(company_id)
         return
     logger.info("Seeding demo company...")
-    company_id = "demo-company"
     await db.companies.insert_one({
         "id": company_id,
         "name": "Acme CRM Demo",
@@ -937,7 +1198,72 @@ async def seed_demo():
         t["created_at"] = now_iso()
         await db.tasks.update_one({"id": t["id"]}, {"$set": t}, upsert=True)
 
+    await _seed_demo_tree(company_id)
     logger.info("Seed complete.")
+
+
+async def _seed_demo_tree(company_id: str):
+    """Idempotent — seeds a demo ingested-repo tree + 3 auto-doc so the tree feature is visible."""
+    demo_repo = "acme-crm-app"
+    if await db.context_trees.find_one({"company_id": company_id, "repo_name": demo_repo}):
+        return
+    demo_files = [
+        {"path": "README.md",                          "size":  1240},
+        {"path": "package.json",                       "size":   980},
+        {"path": "backend/server.py",                  "size": 12480},
+        {"path": "backend/models/lead.py",             "size":  1560},
+        {"path": "backend/models/task.py",             "size":  1340},
+        {"path": "backend/routes/auth.py",             "size":  2200},
+        {"path": "backend/routes/crm.py",              "size":  3100},
+        {"path": "backend/routes/chat.py",             "size":  4820},
+        {"path": "backend/db.py",                      "size":   870},
+        {"path": "frontend/src/App.js",                "size":  1420},
+        {"path": "frontend/src/pages/Overview.jsx",    "size":  3480},
+        {"path": "frontend/src/pages/CRM.jsx",         "size":  4210},
+        {"path": "frontend/src/pages/Analytics.jsx",   "size":  5320},
+        {"path": "frontend/src/components/Chat.jsx",   "size":  6100},
+        {"path": "frontend/src/lib/api.js",            "size":   640},
+        {"path": "frontend/src/lib/auth.js",           "size":   980},
+        {"path": "docs/architecture.md",               "size":  2400},
+        {"path": "docs/escalation-rules.md",           "size":  1180},
+    ]
+    tree = _build_tree(demo_files)
+    await db.context_trees.update_one(
+        {"company_id": company_id, "repo_name": demo_repo},
+        {"$set": {
+            "id": str(uuid.uuid4()),
+            "company_id": company_id,
+            "repo_name": demo_repo,
+            "tree": tree,
+            "file_count": len(demo_files),
+            "total_chars": sum(f["size"] for f in demo_files),
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+        }}, upsert=True,
+    )
+    demo_docs = [
+        ("Architecture",    "dev", "# Architecture\n\nReact + FastAPI + MongoDB. Auth via JWT. Chat streams from Anthropic Claude Sonnet 4.6.\n\n## Main flows\n- Register/Login → JWT (7d)\n- Ask assistant → build system prompt from context docs + scoped CRM → LLM → cache\n- Ingest .md → auto-generate context docs"),
+        ("Database Schema","dev", "# Schema\n\n## users\n- id, email (unique), password_hash, name, role (super_admin/admin/agent), company_id, token_limit, token_used, blocked\n\n## leads\n- id, company_id, name, email, phone, status, priority, assigned_to (user_id), notes, last_touched_at\n\n## tasks\n- id, company_id, lead_id, title, priority, due_date, status, assigned_to\n\n## context_docs\n- id, company_id, title, content, kind (dev/product/ideology), source, included, repo_name"),
+        ("Module Map",     "dev", "# Modules\n\n- `backend/server.py` — FastAPI app + all routes + LLM integration\n- `backend/routes/auth.py` — JWT register/login/me\n- `backend/routes/crm.py` — leads + tasks CRUD, scoped queries\n- `backend/routes/chat.py` — /chat endpoint with system-prompt build + cache\n- `frontend/src/pages/Overview.jsx` — agent dashboard\n- `frontend/src/pages/CRM.jsx` — leads + tasks tables with filters\n- `frontend/src/pages/Analytics.jsx` — admin metrics + charts\n- `frontend/src/components/Chat.jsx` — floating chat widget with markdown + voice"),
+    ]
+    for title, kind, content in demo_docs:
+        full_title = f"{demo_repo} — {title}"
+        doc = {
+            "id": str(uuid.uuid4()),
+            "company_id": company_id,
+            "title": full_title,
+            "content": content,
+            "kind": kind,
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+            "source": "auto-ingest",
+            "repo_name": demo_repo,
+            "included": True,
+        }
+        await db.context_docs.update_one(
+            {"company_id": company_id, "title": full_title},
+            {"$set": doc}, upsert=True,
+        )
 
 
 @app.on_event("startup")
