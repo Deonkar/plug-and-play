@@ -5,6 +5,7 @@ import MarketingLayout from "../components/marketing/MarketingLayout";
 import CRMDemo from "../components/demo/CRMDemo";
 import AdminDemo from "../components/demo/AdminDemo";
 import HeroDemo from "../components/demo/HeroDemo";
+import MdToChat from "../components/MdToChat";
 
 export default function Landing() {
   return (
@@ -67,7 +68,7 @@ export default function Landing() {
       </section>
 
       {/* ═══════════════ ONE LINE, ONE IDEA ═══════════════ */}
-      <section className="px-6 md:px-16 py-40 md:py-56">
+      <section className="px-6 md:px-16 pt-40 md:pt-56 pb-20 md:pb-24">
         <motion.div
           initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.7 }}
@@ -82,6 +83,9 @@ export default function Landing() {
           </p>
         </motion.div>
       </section>
+
+      {/* premium visual filling the space */}
+      <MdToChat />
 
       {/* ═══════════════ THREE PILLARS ═══════════════ */}
       <section className="px-6 md:px-16 py-32 md:py-40">

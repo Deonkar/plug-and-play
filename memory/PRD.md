@@ -184,3 +184,7 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 - New `/app/services` page — picker + sticky total bar (Monthly $ · One-time $ · N selected) + Save picks / Proceed to payment
 - New `/app/services/checkout` page — line-item review, monthly total, Stripe-placeholder Confirm-order flow; success shows "Order recorded" and redirects back
 - Verified end-to-end via curl: estimate saved, PUT/GET services persist, POST checkout returns `order_id + status='pending_payment'`
+
+## Update — Session 13 (Jan 2026) — Interactive hero + Premium fill
+- ✅ **MdToChat** component fills the previously empty space between "In markdown" and the three pillars — side-by-side visual with an animated `.md` source editor (left) and the resulting scoped chat answer (right), connected by a pulsing Company/OS bridge with a plug-and-play label. Scroll-reveals with staggered x-axis motion.
+- ✅ **HeroDemo made interactive** — 3D cursor-parallax tilt (rotateX/Y springs) as user hovers; a "TRY IT LIVE" pill appears on hover with a play icon; clicking finds the real chat widget on the page and highlights + opens it (for authed users on the dashboard) or bounces to `/login?next=/app` for anon visitors. Hovering pauses the auto-loop so the user can inspect the frame.

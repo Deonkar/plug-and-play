@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Send, MessageSquare, X } from "lucide-react";
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { Sparkles, Send, MessageSquare, X, Play } from "lucide-react";
 
 /**
  * Hero-sized looping demo: a fake CRM in a browser frame with the Company/OS chatbot
@@ -36,13 +36,43 @@ export default function HeroDemo() {
   const [phase, setPhase] = useState(0); // 0 crm alone, 1 widget open, 2 typing, 3 assistant, loop
   const [typed, setTyped] = useState("");
   const [asstIdx, setAsstIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
   const running = useRef(true);
+  const containerRef = useRef(null);
+
+  // Cursor-parallax tilt
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  const rotateX = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), { stiffness: 150, damping: 20 });
+  const rotateY = useSpring(useTransform(mx, [-0.5, 0.5], [-4, 4]), { stiffness: 150, damping: 20 });
+
+  const onMouseMove = (e) => {
+    const r = containerRef.current?.getBoundingClientRect();
+    if (!r) return;
+    mx.set((e.clientX - r.left) / r.width - 0.5);
+    my.set((e.clientY - r.top) / r.height - 0.5);
+  };
+  const onMouseLeave = () => { mx.set(0); my.set(0); };
+
+  const openLiveWidget = () => {
+    // If the widget is on the page (authenticated dashboard), open it
+    const btn = document.querySelector('[data-testid="chat-widget-toggle"]');
+    if (btn) {
+      btn.click();
+      btn.classList.add("ring-4", "ring-primary/50");
+      setTimeout(() => btn.classList.remove("ring-4", "ring-primary/50"), 1600);
+      return;
+    }
+    // Otherwise nudge them to sign in first
+    window.location.href = "/login?next=/app";
+  };
 
   useEffect(() => {
     running.current = true;
     const timers = [];
     const t = (ms, fn) => timers.push(setTimeout(fn, ms));
     const run = () => {
+      if (paused) return;
       setPhase(0); setTyped(""); setAsstIdx(0);
       t(1600, () => setPhase(1));
       t(3000, () => setPhase(2));
@@ -50,14 +80,21 @@ export default function HeroDemo() {
       const after = 3000 + USER_MSG.length * 32 + 500;
       t(after, () => setPhase(3));
       for (let i = 1; i <= ASSISTANT_LINES.length; i++) t(after + i * 380, () => setAsstIdx(i));
-      t(after + ASSISTANT_LINES.length * 380 + 4500, () => { if (running.current) run(); });
+      t(after + ASSISTANT_LINES.length * 380 + 4500, () => { if (running.current && !paused) run(); });
     };
     run();
     return () => { running.current = false; timers.forEach(clearTimeout); };
-  }, []);
+  }, [paused]);
 
   return (
-    <div className="border border-border shadow-[0_60px_120px_-40px_rgba(0,0,0,0.6)] overflow-hidden bg-slate-50 relative">
+    <motion.div
+      ref={containerRef}
+      onMouseMove={onMouseMove}
+      onMouseLeave={onMouseLeave}
+      style={{ rotateX, rotateY, transformPerspective: 1200, transformStyle: "preserve-3d" }}
+      className="border border-border shadow-[0_60px_120px_-40px_rgba(0,0,0,0.6)] overflow-hidden bg-slate-50 relative group"
+      data-testid="hero-demo"
+    >
       {/* Browser chrome */}
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-neutral-800 bg-neutral-950">
         <span className="w-2.5 h-2.5 border border-red-500/60 bg-red-500/60 rounded-full" />
@@ -211,6 +248,18 @@ export default function HeroDemo() {
         <span className="inline-block w-1.5 h-1.5 bg-white rounded-full mr-1.5 animate-pulse" />
         plug-in ready
       </motion.div>
-    </div>
+
+      {/* Try-it-live pill */}
+      <motion.button
+        initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2 }}
+        onClick={openLiveWidget}
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-neutral-950/90 backdrop-blur border border-primary/40 text-white text-[11px] font-mono uppercase tracking-widest px-3 py-1.5 shadow-lg hover:border-primary transition-colors opacity-0 group-hover:opacity-100 z-20"
+        data-testid="hero-demo-try-live"
+      >
+        <Play className="w-3 h-3 text-primary fill-primary" /> Try it live
+      </motion.button>
+    </motion.div>
   );
 }
