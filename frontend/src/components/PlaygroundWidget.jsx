@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { MessageSquare, X, Send, Sparkles } from "lucide-react";
+import { MessageSquare, X, Send, Sparkles, ArrowRight } from "lucide-react";
 import api from "../lib/api";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +25,11 @@ export default function PlaygroundWidget() {
   const [busy, setBusy] = useState(false);
   const [remaining, setRemaining] = useState(null);
   const [sessionId, setSessionId] = useState(null);
+  const [ctaDismissed, setCtaDismissed] = useState(false);
   const scrollRef = useRef(null);
+
+  const firstReplyReceived = messages.some((m) => m.role === "assistant" && !m.error);
+  const showCta = firstReplyReceived && !ctaDismissed;
 
   useEffect(() => {
     if (open && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -139,6 +144,41 @@ export default function PlaygroundWidget() {
                 </div>
               )}
             </div>
+
+            <AnimatePresence>
+              {showCta && (
+                <motion.div
+                  key="pw-cta"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.25 }}
+                  className="mx-3 mb-2 relative border border-primary/50 bg-primary/[0.08] px-3 py-2.5 flex items-center gap-3"
+                  data-testid="playground-cta"
+                >
+                  <Sparkles className="w-4 h-4 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-display font-bold text-foreground leading-tight">Impressed?</div>
+                    <div className="text-[11px] text-muted-foreground leading-snug">Get your own scoped agent in 2 min.</div>
+                  </div>
+                  <Link
+                    to="/register"
+                    className="shrink-0 inline-flex items-center gap-1 bg-primary text-white text-[11px] font-mono uppercase tracking-wider px-2.5 py-1.5 hover:brightness-110 transition-all"
+                    data-testid="playground-cta-register"
+                  >
+                    Register <ArrowRight className="w-3 h-3" />
+                  </Link>
+                  <button
+                    onClick={() => setCtaDismissed(true)}
+                    className="shrink-0 text-muted-foreground hover:text-foreground p-0.5"
+                    data-testid="playground-cta-dismiss"
+                    aria-label="Dismiss"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <div className="p-3 border-t border-border bg-muted/30">
               <div className="flex items-end gap-2 border border-border focus-within:border-primary/60 bg-background px-3 py-2">

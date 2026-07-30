@@ -204,3 +204,15 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 ## Update — Session 15 (Jan 2026) — Public Playground
 - ✅ **Backend `POST /api/public/playground`** — unauthenticated endpoint that impersonates the seeded demo agent Alice (3 leads / 3 tasks), builds a normal system prompt, and streams back a Claude Sonnet 4.6 answer. IP-based rate limit of 15 msgs/hr enforced via `db.playground_logs`. Returns `{answer, session_id, remaining}`.
 - ✅ **`PlaygroundWidget` on marketing pages** — mounted inside `MarketingLayout` so it appears on every public page. Bottom-right orange FAB "Try it live" → glass panel with 3 suggestion prompts, real markdown-rendered replies, live "N left this hour" counter, seeded-data disclaimer. Verified: sending "What urgent tasks?" returned a scoped answer citing `task-01 · Northwind Traders (lead-01)`.
+
+
+## Update — Session 16 (Feb 2026) — Personal Info + Playground CTA
+- ✅ **Footer socials swapped** in `MarketingLayout` from placeholders to real handles: Mail (tylordyron@gmail.com), GitHub (github.com/Deonkar), LinkedIn (in.linkedin.com/in/onkardeokate), Blog (dev.to/onkardeokate) — icon-only row using lucide `Mail/Github/Linkedin/BookOpen`. Copyright line now reads `COMPANY/OS © 2026 · built by Onkar Deokate`.
+- ✅ **About page** — one-liner personalized to "I'm Onkar Deokate, the founder…", CTA email now `mailto:tylordyron@gmail.com`, 4-icon social grid at bottom (Email/LinkedIn/GitHub/Blog), Snapshot founder = Onkar Deokate.
+- ✅ **Contact page** — email item now shows `tylordyron@gmail.com`; added a `/// or find me on` row with GitHub/LinkedIn/Blog icons. Contact submissions continue to be stored in `db.contact_submissions` (kept as MOCK — no real email is sent yet; Resend API key still not provided by user).
+- ✅ **Playground CTA overlay** — `PlaygroundWidget` now shows a subtle orange-tinted banner "Impressed? Get your own scoped agent in 2 min." with a `REGISTER →` link to `/register` and an X dismiss button. It appears only after the FIRST successful assistant reply (`messages.some(m => m.role==='assistant' && !m.error)`) and stays hidden thereafter if dismissed. Verified via Playwright: banner rendered after suggestion-triggered reply.
+
+### Backlog / Next
+- Real Resend integration for contact form (blocked on API key)
+- Real Stripe checkout (currently UI-only order flow)
+- `server.py` split into routers (approaching 1000 lines)

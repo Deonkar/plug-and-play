@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mail, MessageSquare, Send, Check } from "lucide-react";
+import { Mail, MessageSquare, Send, Check, Github, Linkedin, BookOpen } from "lucide-react";
 import MarketingLayout from "../../components/marketing/MarketingLayout";
 import api from "../../lib/api";
 
@@ -34,9 +34,24 @@ export default function Contact() {
           </p>
           <div className="space-y-4 text-sm">
             <ContactItem icon={Mail} label="Email">
-              {/* PLACEHOLDER */}<a className="text-foreground hover:text-primary transition-colors" href="mailto:founder@companyos.dev">founder@companyos.dev</a>
+              <a className="text-foreground hover:text-primary transition-colors" href="mailto:tylordyron@gmail.com" data-testid="contact-email-link">tylordyron@gmail.com</a>
             </ContactItem>
             <ContactItem icon={MessageSquare} label="Response time">Usually within 24 hours (weekdays)</ContactItem>
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-border">
+            <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">/// or find me on</div>
+            <div className="flex items-center gap-5 text-sm">
+              <a href="https://github.com/Deonkar" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors" data-testid="contact-github">
+                <Github className="w-4 h-4"/> GitHub
+              </a>
+              <a href="https://in.linkedin.com/in/onkardeokate" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors" data-testid="contact-linkedin">
+                <Linkedin className="w-4 h-4"/> LinkedIn
+              </a>
+              <a href="https://dev.to/onkardeokate" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors" data-testid="contact-blog">
+                <BookOpen className="w-4 h-4"/> Blog
+              </a>
+            </div>
           </div>
         </div>
 

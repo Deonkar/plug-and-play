@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Mail, Github, Linkedin, Twitter, MapPin, ArrowRight } from "lucide-react";
+import { Mail, Github, Linkedin, BookOpen, MapPin, ArrowRight } from "lucide-react";
 import MarketingLayout from "../../components/marketing/MarketingLayout";
 
 /**
@@ -16,32 +16,30 @@ export default function About() {
             Built by a CRM operator<br />who was <span className="text-primary">tired of the noise.</span>
           </h1>
           <p className="text-muted-foreground text-lg leading-relaxed max-w-2xl">
-            {/* PLACEHOLDER: personal one-liner */}
-            Hi — I'm the founder of Company/OS. I've worked in the trenches of CRM operations for
+            Hi — I'm <span className="text-foreground font-semibold">Onkar Deokate</span>, the founder of Company/OS. I've worked in the trenches of CRM operations for
             years and kept watching agents drown in tabs, miss escalations, and re-onboard the
             same questions over and over. Company/OS is my answer: an operating system that reads
             your team's playbooks, respects each person's data boundaries, and just answers.
           </p>
           <div className="mt-8 flex flex-wrap gap-4 items-center">
-            <a href="mailto:founder@companyos.dev" className="btn-primary flex items-center gap-2" data-testid="about-cta-email">
+            <a href="mailto:tylordyron@gmail.com" className="btn-primary flex items-center gap-2" data-testid="about-cta-email">
               <Mail className="w-4 h-4" /> Say hi
             </a>
             <Link to="/contact" className="btn-ghost">Send a longer message →</Link>
           </div>
 
           <div className="mt-10 pt-8 border-t border-border grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            {/* PLACEHOLDER: swap links + handles */}
-            <a href="mailto:founder@companyos.dev" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
-              <Mail className="w-4 h-4"/> founder@companyos.dev
+            <a href="mailto:tylordyron@gmail.com" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors" data-testid="about-email">
+              <Mail className="w-4 h-4"/> Email
             </a>
-            <a href="https://linkedin.com/in/your-handle" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+            <a href="https://in.linkedin.com/in/onkardeokate" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors" data-testid="about-linkedin">
               <Linkedin className="w-4 h-4"/> LinkedIn
             </a>
-            <a href="https://github.com/your-handle" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+            <a href="https://github.com/Deonkar" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors" data-testid="about-github">
               <Github className="w-4 h-4"/> GitHub
             </a>
-            <a href="https://x.com/your-handle" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
-              <Twitter className="w-4 h-4"/> Twitter
+            <a href="https://dev.to/onkardeokate" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors" data-testid="about-blog">
+              <BookOpen className="w-4 h-4"/> Blog
             </a>
           </div>
         </div>
@@ -50,10 +48,10 @@ export default function About() {
           <div className="border border-border bg-card p-6 md:p-8">
             <div className="font-mono text-[10px] uppercase tracking-widest text-primary mb-3">/// snapshot</div>
             <dl className="space-y-4 text-sm">
-              <SnapItem label="Founder">{/* PLACEHOLDER */}Your Name</SnapItem>
+              <SnapItem label="Founder">Onkar Deokate</SnapItem>
               <SnapItem label="Role">CRM ops · builder of Company/OS</SnapItem>
               <SnapItem label="Based in">
-                <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary"/>{/* PLACEHOLDER */}Bangalore, India</span>
+                <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary"/>Bangalore, India</span>
               </SnapItem>
               <SnapItem label="Building since">2026</SnapItem>
               <SnapItem label="Powered by">Emergent · Claude Sonnet 4.6 · Whisper</SnapItem>

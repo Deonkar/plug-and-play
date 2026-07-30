@@ -1,7 +1,7 @@
 import { NavLink, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { Menu, X, Mail, Github, Linkedin, Twitter } from "lucide-react";
+import { Menu, X, Mail, Github, Linkedin, BookOpen } from "lucide-react";
 import Logo from "../Logo";
 import CursorGlow from "../CursorGlow";
 import ThemeToggle from "../ThemeToggle";
@@ -96,11 +96,10 @@ export default function MarketingLayout({ children, hideCursorGlow = false }) {
               into one privacy-scoped chatbot. Built with taste.
             </p>
             <div className="flex items-center gap-3 mt-5">
-              {/* PLACEHOLDER: swap with your handles */}
-              <a href="mailto:founder@companyos.dev" title="Email" className="text-muted-foreground hover:text-primary transition-colors" data-testid="footer-email"><Mail className="w-4 h-4"/></a>
-              <a href="https://github.com/your-handle" target="_blank" rel="noreferrer" title="GitHub" className="text-muted-foreground hover:text-primary transition-colors" data-testid="footer-github"><Github className="w-4 h-4"/></a>
-              <a href="https://linkedin.com/in/your-handle" target="_blank" rel="noreferrer" title="LinkedIn" className="text-muted-foreground hover:text-primary transition-colors" data-testid="footer-linkedin"><Linkedin className="w-4 h-4"/></a>
-              <a href="https://x.com/your-handle" target="_blank" rel="noreferrer" title="Twitter" className="text-muted-foreground hover:text-primary transition-colors" data-testid="footer-twitter"><Twitter className="w-4 h-4"/></a>
+              <a href="mailto:tylordyron@gmail.com" title="Email" className="text-muted-foreground hover:text-primary transition-colors" data-testid="footer-email"><Mail className="w-4 h-4"/></a>
+              <a href="https://github.com/Deonkar" target="_blank" rel="noreferrer" title="GitHub" className="text-muted-foreground hover:text-primary transition-colors" data-testid="footer-github"><Github className="w-4 h-4"/></a>
+              <a href="https://in.linkedin.com/in/onkardeokate" target="_blank" rel="noreferrer" title="LinkedIn" className="text-muted-foreground hover:text-primary transition-colors" data-testid="footer-linkedin"><Linkedin className="w-4 h-4"/></a>
+              <a href="https://dev.to/onkardeokate" target="_blank" rel="noreferrer" title="Blog" className="text-muted-foreground hover:text-primary transition-colors" data-testid="footer-blog"><BookOpen className="w-4 h-4"/></a>
             </div>
           </div>
           <FootCol title="Product" links={[
@@ -114,7 +113,7 @@ export default function MarketingLayout({ children, hideCursorGlow = false }) {
           ]} />
         </div>
         <div className="mt-12 pt-6 border-t border-border flex flex-col md:flex-row justify-between gap-2 text-xs font-mono text-muted-foreground">
-          <span>COMPANY/OS © 2026</span>
+          <span>COMPANY/OS © 2026 · built by <a href="https://in.linkedin.com/in/onkardeokate" target="_blank" rel="noreferrer" className="text-foreground hover:text-primary transition-colors">Onkar Deokate</a></span>
           <span>build_00.4.0 · plug-and-play · multi-tenant</span>
         </div>
       </footer>
