@@ -67,11 +67,17 @@
 .badge-done { border-color: hsl(140 60% 45%); color: hsl(140 60% 55%); }
 
 /* Chat widget */
+/* Chat widget — theme-aware. In dark mode it's a translucent dark glass; in light it becomes a bright, clean surface. */
 .chat-glass {
-  background: rgba(0, 0, 0, 0.72);
+  background: hsl(var(--card));
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+[data-theme="dark"] .chat-glass {
+  background: rgba(10, 10, 10, 0.85);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 /* Sidebar active */

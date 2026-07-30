@@ -214,27 +214,27 @@ export default function ChatWidget() {
               <GripVertical className="w-3 h-3 rotate-45" />
             </div>
             {/* HEADER */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-primary/[0.03]">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="relative">
                   <div className="absolute inset-0 bg-primary/40 blur-md animate-pulse" />
                   <Sparkles className="relative w-4 h-4 text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <div className="font-display font-bold text-sm leading-tight">Company/OS</div>
+                  <div className="font-display font-bold text-sm leading-tight text-foreground">Company/OS</div>
                   <div className="font-mono text-[10px] text-muted-foreground truncate">assistant · online</div>
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={toggleTheme} className="text-muted-foreground hover:text-white p-1.5" data-testid="chat-theme-toggle" title="Toggle theme">
+                <button onClick={toggleTheme} className="text-muted-foreground hover:text-foreground p-1.5" data-testid="chat-theme-toggle" title="Toggle theme">
                   {theme === "dark" ? <Sun className="w-3.5 h-3.5"/> : <Moon className="w-3.5 h-3.5"/>}
                 </button>
                 {messages.length > 0 && (
-                  <button onClick={clear} className="text-muted-foreground hover:text-white p-1.5" data-testid="chat-clear" title="New chat">
+                  <button onClick={clear} className="text-muted-foreground hover:text-foreground p-1.5" data-testid="chat-clear" title="New chat">
                     <Minimize2 className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <button data-testid="chat-widget-close" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-white p-1.5" title="Close">
+                <button data-testid="chat-widget-close" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground p-1.5" title="Close">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -244,7 +244,7 @@ export default function ChatWidget() {
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
               {messages.length === 0 && (
                 <div className="pt-2">
-                  <div className="font-display font-bold text-lg mb-1">How can I help?</div>
+                  <div className="font-display font-bold text-lg mb-1 text-foreground">How can I help?</div>
                   <p className="text-muted-foreground text-xs mb-4">Ask about your leads, tasks, escalations, or anything from the company brain.</p>
                   <div className="space-y-2">
                     {suggestions.map((s, i) => {
@@ -254,7 +254,7 @@ export default function ChatWidget() {
                           key={i}
                           onClick={() => send(s.text)}
                           data-testid={`chat-suggestion-${i}`}
-                          className="w-full flex items-start gap-2.5 px-3 py-2.5 border border-white/10 hover:border-primary/60 hover:bg-primary/5 text-xs text-left transition-all group"
+                          className="w-full flex items-start gap-2.5 px-3 py-2.5 border border-border hover:border-primary/60 hover:bg-primary/5 text-xs text-left transition-all group text-foreground"
                         >
                           <Icon className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
                           <span>{s.text}</span>
@@ -280,7 +280,7 @@ export default function ChatWidget() {
             </div>
 
             {/* INPUT */}
-            <div className="p-3 border-t border-white/10 bg-gradient-to-t from-black/40 to-transparent">
+            <div className="p-3 border-t border-border bg-muted/30">
               {(recording || transcribing || micError) && (
                 <div className="flex items-center gap-2 text-[11px] font-mono mb-2" data-testid="mic-status">
                   {recording && (
@@ -296,7 +296,7 @@ export default function ChatWidget() {
                   {micError && !recording && !transcribing && <span className="text-primary">! {micError}</span>}
                 </div>
               )}
-              <div className="flex items-end gap-2 border border-white/10 focus-within:border-primary/60 bg-black/40 px-3 py-2 transition-colors">
+              <div className="flex items-end gap-2 border border-border focus-within:border-primary/60 bg-background px-3 py-2 transition-colors">
                 <textarea
                   ref={inputRef}
                   value={input}
@@ -306,7 +306,7 @@ export default function ChatWidget() {
                   }}
                   rows={1}
                   placeholder={recording ? "Listening..." : "Ask about your leads, tasks..."}
-                  className="flex-1 bg-transparent outline-none text-sm resize-none max-h-32 leading-snug placeholder:text-muted-foreground"
+                  className="flex-1 bg-transparent outline-none text-sm resize-none max-h-32 leading-snug text-foreground placeholder:text-muted-foreground"
                   data-testid="chat-input"
                   disabled={recording || transcribing}
                 />
@@ -317,7 +317,7 @@ export default function ChatWidget() {
                     "shrink-0 p-2 border transition-colors",
                     recording
                       ? "bg-primary text-white border-primary"
-                      : "border-white/10 text-muted-foreground hover:text-primary hover:border-primary/60"
+                      : "border-border text-muted-foreground hover:text-primary hover:border-primary/60"
                   )}
                   title={recording ? "Stop" : "Voice message"}
                   data-testid="chat-mic"
@@ -331,14 +331,14 @@ export default function ChatWidget() {
                     "shrink-0 p-2 transition-all",
                     input.trim() && !busy && !recording && !transcribing
                       ? "bg-primary text-white hover:brightness-110"
-                      : "bg-white/5 text-muted-foreground cursor-not-allowed"
+                      : "bg-muted text-muted-foreground cursor-not-allowed"
                   )}
                   data-testid="chat-send"
                 >
                   <Send className="w-4 h-4" />
                 </button>
               </div>
-              <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-muted-foreground/70">
+              <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-muted-foreground">
                 <span>Enter to send · hold mic to speak</span>
                 <span>Claude Sonnet 4.6 · Whisper</span>
               </div>
@@ -365,16 +365,15 @@ function Message({ msg, index }) {
       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18 }}
       className={cn("group flex flex-col", isUser ? "items-end" : "items-start")}
-      data-testid={`chat-msg-${msg.role}-${index}`}
-    >
+      data-testid={`chat-msg-${msg.role}-${index}`}>
       <div
         className={cn(
           "max-w-[88%] px-3.5 py-2.5 text-sm border",
           isUser
-            ? "border-primary/60 bg-primary/10 text-white"
+            ? "border-primary/60 bg-primary/10 text-foreground"
             : msg.error
-              ? "border-primary/40 bg-primary/5"
-              : "border-white/10 bg-white/[0.03]"
+              ? "border-primary/40 bg-primary/5 text-foreground"
+              : "border-border bg-muted/40 text-foreground"
         )}
       >
         {isUser ? (

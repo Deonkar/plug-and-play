@@ -1,0 +1,26 @@
+{
+  "summary": "Iteration 4 — verified light-mode chat widget contrast fix + new HeroDemo. Backend regression: 7/7 pytest pass (contact, waitlist, chat basic, chat 429, monthly reset). Frontend: (1) LIGHT-mode chat panel now renders with bg rgb(250,250,250), foreground rgb(20,20,20), border rgb(224,224,224); header 'Company/OS' dark readable text; 'assistant · online' muted rgb(102,102,102); 'How can I help?' dark rgb(20,20,20); all 3 suggestion buttons dark text on light; input placeholder 'Ask about your leads, tasks...' with placeholder muted-foreground; bottom hints 'Enter to send · hold mic to speak' + 'Claude Sonnet 4.6 · Whisper' rgb(102,102,102) — all pass WCAG AA readability. (2) chat-theme-toggle correctly flips document data-theme dark<->light and .chat-glass override kicks in giving rgba(10,10,10,0.85) translucent dark panel with rgb(250,250,250) suggestion text. (3) Sent 'what urgent tasks?' — backend responded within ~10s with a real Claude answer referencing task-04 Adventure Works and task-01 Northwind; assistant bubble color rgb(20,20,20) on rgba(240,240,240,0.4) muted bg — fully readable in light. (4) HeroDemo on landing renders SalesHub browser chrome, all 4 leads (Northwind Traders, Contoso Ltd, Fabrikam Inc, Adventure Works), streaming user question + assistant reply mentioning task-01/Northwind, and [data-testid=plugin-ready-tag] visible top-right. Loop replays after ~10s.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    ".chat-glass now correctly uses hsl(var(--card))/hsl(var(--border)) with [data-theme='dark'] override — clean theme-aware pattern.",
+    "ChatWidget.jsx no longer contains bg-black/*, text-white, border-white/10, bg-white/* hardcoded classes; all replaced with semantic tokens (bg-muted, text-foreground, border-border, text-muted-foreground, bg-background).",
+    "HeroDemo.jsx is a self-contained loop component — fine, but the widget panel inside HeroDemo intentionally uses hardcoded dark colours (bg-neutral-950, border-white/10) because it mimics the assistant preview regardless of page theme. This is deliberate and looks correct in both light and dark landing.",
+    "server.py still ~1059 lines — refactoring suggestion from earlier iterations still stands.",
+    "Public /api/public/contact and /api/public/waitlist still lack rate-limiting/captcha — spam risk in prod."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% of tested flows"},
+  "test_credentials": "admin@acme.demo/admin123 verified working",
+  "seed_data_creation": "None — pytest cleans up ephemeral contact/waitlist docs.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Primary bug (light-mode chat contrast) is fixed. Screenshots: /app/test_reports/chat_light.png (light empty state), /app/test_reports/chat_dark.png (dark toggled), /app/test_reports/chat_light_conversation.png (light + assistant reply), /app/test_reports/hero_demo.png (landing HeroDemo). Chat theme toggle triggers global data-theme change (not scoped to widget) — noted as intentional. Login uses [data-testid=login-email/login-password/login-submit], not generic button[type=submit]. Assistant response takes 5-12s via Claude Sonnet 4.6 — allow at least 25s wait.",
+  "rca_of_the_issue": "Original bug: .chat-glass was hardcoded to a dark translucent background (bg-black/60 or similar) plus ChatWidget.jsx used bg-black/*, text-white, border-white/10 classes — in light mode the surrounding page turned white but the widget stayed dark AND the light-themed foreground tokens (dark text) rendered against still-dark bleeding backgrounds inside sections that used semantic classes. Fix: (a) .chat-glass now maps to hsl(var(--card))/hsl(var(--border)) so it inherits the theme; a [data-theme='dark'] .chat-glass override restores the translucent dark glass look for dark mode. (b) All hardcoded color classes inside ChatWidget.jsx were swapped for semantic tokens (text-foreground, text-muted-foreground, border-border, bg-muted, bg-background) — content now stays readable under both themes. Verified: light panel is rgb(250,250,250)/rgb(20,20,20), dark panel is rgba(10,10,10,0.85)/rgb(250,250,250), assistant/user bubbles both use text-foreground on muted/primary bgs — readable in both themes."
+}

@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import MarketingLayout from "../components/marketing/MarketingLayout";
 import CRMDemo from "../components/demo/CRMDemo";
 import AdminDemo from "../components/demo/AdminDemo";
+import HeroDemo from "../components/demo/HeroDemo";
 
 export default function Landing() {
   return (
@@ -149,72 +150,19 @@ function Pillar({ title, body }) {
   );
 }
 
-/* A single, hero-sized "product moment" — the panel alone, centered, breathing */
+/* A single, hero-sized "product moment" — a self-playing CRM+widget interaction */
 function ProductMoment() {
   return (
     <section className="px-6 md:px-16 pb-32 md:pb-40 relative">
-      <div className="max-w-4xl mx-auto relative">
+      <div className="max-w-5xl mx-auto relative">
         {/* ambient glow behind */}
-        <div className="absolute -inset-16 bg-primary/20 blur-[100px] opacity-60 pointer-events-none" />
-
+        <div className="absolute -inset-16 bg-primary/15 blur-[120px] opacity-70 pointer-events-none" />
         <motion.div
           initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6 }}
-          className="relative demo-dark border border-border shadow-[0_60px_120px_-40px_rgba(0,0,0,0.6)]"
+          className="relative"
         >
-          {/* browser chrome */}
-          <div className="flex items-center gap-2 px-5 py-3 border-b border-border bg-black/60">
-            <span className="w-2.5 h-2.5 border border-primary bg-primary/40" />
-            <span className="w-2.5 h-2.5 border border-neutral-700 bg-neutral-800" />
-            <span className="w-2.5 h-2.5 border border-neutral-700 bg-neutral-800" />
-            <span className="ml-4 font-mono text-[10px] text-muted-foreground">ask.company.os</span>
-            <span className="ml-auto flex items-center gap-1 text-[10px] font-mono text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> live
-            </span>
-          </div>
-
-          <div className="p-8 md:p-12 space-y-6 text-base md:text-lg">
-            <div className="font-mono text-muted-foreground">
-              <span className="text-primary">$</span> what urgent tasks do I have today?
-            </div>
-            <div className="border-l-2 border-primary pl-4 md:pl-6">
-              <div className="font-mono text-[10px] text-primary uppercase tracking-[0.25em] mb-3">assistant</div>
-              <div className="leading-relaxed">
-                You have <b className="text-primary">1 URGENT task</b>:<br />
-                <span className="text-primary">▸ task-01</span> · Call Northwind CTO for demo <br />
-                <span className="text-muted-foreground text-sm">Lead: Northwind Traders (lead-01) · previously escalated — tackle first.</span>
-              </div>
-            </div>
-            <div className="font-mono text-muted-foreground">
-              <span className="text-primary">$</span> <span className="border-r-2 border-primary animate-pulse ml-1" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-4 border-t border-border font-mono text-[10px] uppercase tracking-widest divide-x divide-border">
-            {[
-              { k: "resp", v: "720ms" },
-              { k: "in", v: "479 tok" },
-              { k: "out", v: "165 tok" },
-              { k: "cache", v: "miss", accent: true },
-            ].map((s, i) => (
-              <div key={i} className="px-3 py-3 text-center">
-                <div className="text-muted-foreground text-[9px]">{s.k}</div>
-                <div className={s.accent ? "text-primary" : "text-foreground"}>{s.v}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* floating plug-in tag */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8, rotate: 0 }}
-            animate={{ opacity: 1, scale: 1, rotate: 2 }}
-            transition={{ delay: 0.6, type: "spring", stiffness: 300 }}
-            className="absolute -top-4 -right-4 md:-top-3 md:-right-3 bg-primary text-white text-[10px] font-mono uppercase tracking-widest px-2.5 py-1.5 border border-primary/60 shadow-[0_8px_20px_-4px_rgba(255,80,20,0.4)] z-20"
-            data-testid="plugin-ready-tag"
-          >
-            <span className="inline-block w-1.5 h-1.5 bg-white rounded-full mr-1.5 animate-pulse" />
-            plug-in ready
-          </motion.div>
+          <HeroDemo />
         </motion.div>
       </div>
     </section>
