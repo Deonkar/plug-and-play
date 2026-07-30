@@ -108,17 +108,13 @@ export default function Landing() {
       {/* ═══════════════ LIVE DEMOS ═══════════════ */}
       <section id="demo" className="py-32 md:py-40 px-6 md:px-16 bg-muted/40">
         <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-20 md:mb-24 max-w-3xl mx-auto"
-          >
-            <div className="font-mono text-[11px] uppercase tracking-[0.25em] text-primary mb-6">See it running</div>
+          <div className="text-center mb-20 md:mb-24 max-w-3xl mx-auto">
+            <div className="font-mono text-[11px] uppercase tracking-[0.25em] text-primary mb-6">Live product tour</div>
             <h2 className="font-display font-black text-5xl md:text-7xl leading-[0.95] tracking-tight">
-              Not a screenshot.<br />
-              <span className="text-primary">A live walkthrough.</span>
+              Watch it work<br />
+              <span className="text-primary">in real environments.</span>
             </h2>
-          </motion.div>
+          </div>
 
           <div className="space-y-24 md:space-y-32">
             <motion.div
@@ -126,8 +122,8 @@ export default function Landing() {
               transition={{ duration: 0.7 }}
             >
               <div className="mb-8 text-center max-w-xl mx-auto">
-                <div className="font-display font-bold text-2xl md:text-3xl">Inside a customer's CRM.</div>
-                <p className="text-muted-foreground text-sm mt-2">The widget is the only Company/OS surface an agent ever sees.</p>
+                <div className="font-display font-bold text-2xl md:text-3xl">Dropped into any CRM.</div>
+                <p className="text-muted-foreground text-sm mt-2">One floating widget — the rest of your team's workflow doesn't move an inch.</p>
               </div>
               <CRMDemo />
             </motion.div>
@@ -136,8 +132,8 @@ export default function Landing() {
               transition={{ duration: 0.7 }}
             >
               <div className="mb-8 text-center max-w-xl mx-auto">
-                <div className="font-display font-bold text-2xl md:text-3xl">The admin console.</div>
-                <p className="text-muted-foreground text-sm mt-2">Auto-cycling through analytics, token quotas, and the .md context brain.</p>
+                <div className="font-display font-bold text-2xl md:text-3xl">One console for the whole team.</div>
+                <p className="text-muted-foreground text-sm mt-2">Monitor spend, set per-agent quotas, and feed the bot new context — without leaving this screen.</p>
               </div>
               <AdminDemo />
             </motion.div>

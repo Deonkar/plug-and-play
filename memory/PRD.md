@@ -188,3 +188,15 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 ## Update — Session 13 (Jan 2026) — Interactive hero + Premium fill
 - ✅ **MdToChat** component fills the previously empty space between "In markdown" and the three pillars — side-by-side visual with an animated `.md` source editor (left) and the resulting scoped chat answer (right), connected by a pulsing Company/OS bridge with a plug-and-play label. Scroll-reveals with staggered x-axis motion.
 - ✅ **HeroDemo made interactive** — 3D cursor-parallax tilt (rotateX/Y springs) as user hovers; a "TRY IT LIVE" pill appears on hover with a play icon; clicking finds the real chat widget on the page and highlights + opens it (for authed users on the dashboard) or bounces to `/login?next=/app` for anon visitors. Hovering pauses the auto-loop so the user can inspect the frame.
+
+## Update — Session 14 (Jan 2026) — Rich Analytics + Tighter Copy
+### Analytics revamp
+- 6 KPI cards: Messages · Cache hits · Hit rate · Users · Avg tokens/msg · Escalations (auto-highlight in orange when >0)
+- New charts: **Cache hit-vs-miss donut**, **14-day query-volume area chart** (gradient fill), **Quota utilization horizontal bar** (used vs remaining per agent, with empty-state deep-link to Users)
+- New **Live escalations** card — big count + sub-metrics (Urgent tasks overdue · Hot leads untouched 48h+) + "most recent" list
+- Top prompts table gets right-aligned numeric columns + tokens formatted with `.toLocaleString()`
+
+### Copy
+- Landing demo section retitled from "Not a screenshot / A live walkthrough" → **"Live product tour / Watch it work in real environments."**
+- Subheads: "Inside a customer's CRM." → **"Dropped into any CRM. One floating widget — the rest of your team's workflow doesn't move an inch."**
+- "The admin console." → **"One console for the whole team. Monitor spend, set per-agent quotas, and feed the bot new context — without leaving this screen."**
