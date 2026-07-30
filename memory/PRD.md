@@ -152,3 +152,10 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 - ✅ Demo section is a self-contained "dark island" — CRM + Admin reels with narration
 - ✅ **Silent closer** — massive centered "Your CRM is loud. Make it answer back." with credentials line
 - ✅ py-32/py-40 vertical padding between sections (double the earlier density)
+
+## Update — Session 10 (Jan 2026) — Light-Mode Chat Fix + Hero Video Demo
+### Bug fix (testing agent iteration_4 — 100% pass)
+- ✅ **Chat widget broken in light mode** resolved — rewrote `.chat-glass` to use `hsl(var(--card))` + `hsl(var(--border))` theme vars; `[data-theme='dark']` override restores translucent glass in dark mode. Removed every `bg-black/*`, `text-white`, `border-white/10`, `bg-white/*` hardcoded class from `ChatWidget.jsx` and replaced with `bg-muted`, `text-foreground`, `border-border`, `bg-background`, `text-muted-foreground`. All chat text now WCAG-AA readable in both themes.
+
+### New "hero video"
+- ✅ **HeroDemo** component replaces the static terminal on the landing hero — a self-playing looping animation of a fake SalesHub CRM (blue/white light theme) with the Company/OS chat plug-in bubbling in, receiving a user question that types out character-by-character, then streaming an assistant answer that references `task-01` / `Northwind Traders`. Loops every ~11 seconds. PLUG-IN READY tag pinned top-right.
