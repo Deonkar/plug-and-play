@@ -265,3 +265,53 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 - Real Stripe checkout (currently UI-only order flow)
 - `server.py` split into routers (approaching 1500 lines now)
 - Cmd+K command palette (next high-ROI power-user feature)
+
+## Update — Session 18 (Feb 2026) — Repo Tree Architect + Diff Detection + Chat History
+### Dedicated `/app/context/repos/:repo` page
+- Devs & PMs now architect the tree themselves via **cascading checkboxes** on the tree (folder toggle propagates to descendants)
+- Tri-state UI: `checked` (all descendants in), `unchecked`, `indeterminate` (partial) — MinusSquare icon for the third state
+- Live counter strip: Files included · System-prompt weight (`≈ N tokens`) · Tokens saved · Last ingested date
+- Expand-all / Collapse-all / Select-all controls; scroll-locked tree pane (`max-h-[540px]`) so large repos don't blow the layout
+- Context page shrunk to compact repo **cards** (name, N/M files, ≈ tk, saved, orange progress bar, `+X −Y ~Z` diff badge if present) → click into the dedicated page
+
+### Backend — per-node inclusion + re-ingest diff
+- `tree` nodes now carry an `included: bool` flag (default `True`); helper `_tree_included_paths()` / `_tree_included_chars()` respect parent-directory exclusions
+- New `PATCH /api/context/trees/:repo/toggle` — `{path, included, cascade}`; cascades to descendants when `cascade=true`
+- `POST /api/context/ingest` now:
+  1. builds a fresh tree from the uploaded files
+  2. **copies user's inclusion flags from the previous tree onto matching paths** (`_apply_inclusion_flags`) → devs never lose their architecture on re-ingest
+  3. **computes a diff** (`_tree_diff`) → returns `{added, removed, changed}` and persists it as `last_diff` on the tree doc
+  4. **only feeds the LLM the still-included files** — nothing about excluded paths ever hits the API
+- New `GET /api/context/trees/:repo` returns single-repo tree + docs + live `included_files`/`included_chars`
+- New `DELETE /api/context/trees/:repo` — nukes tree + all auto-generated docs
+- Frontend surfaces the diff prominently on the tree page (`+N −M ~K since last ingest`) with a preview list (first 10 per bucket)
+
+### Chat History admin page `/app/chats`
+- New `GET /api/admin/chats?range=&user_id=&cached_only=&q=&limit=` — full filterable log against `db.chat_logs`
+- Split-pane page: filterable list on the left (Range 7d/14d/30d/all · User · Cached-only · Search), detail pane on the right (Question + Answer with markdown preserved, tokens in/out counters, cached badge)
+- Sidebar link added between Analytics and Services
+
+### Endpoint / route summary added this session
+| Endpoint | Purpose |
+|---|---|
+| `PATCH /api/context/trees/:repo/toggle` | Toggle a single node (path) with cascade |
+| `GET /api/context/trees/:repo` | Single repo tree + docs + live counters |
+| `DELETE /api/context/trees/:repo` | Delete the entire ingested tree + its auto-docs |
+| `POST /api/context/ingest` (updated) | Now returns `{diff, reingest}` and preserves inclusion flags |
+| `GET /api/admin/chats` | Chat history for admins with filters |
+
+| Route | Purpose |
+|---|---|
+| `/app/context/repos/:repo` | Dedicated tree-architect page |
+| `/app/chats` | Chat history admin console |
+
+### Verified via Playwright
+- Toggling `backend/models` (2 files) then `backend/routes` (3 files) drove Files 18 → 13, System-prompt weight 12,855 → 10,325 tk, saved 3,255 tk — indeterminate state visible on parent `backend/` folder
+- Chat History rendered 19 messages, filters `range=14d` + `cached only` chip clickable, detail pane showed markdown-formatted assistant answer with tokens (902 in / 137 out / cached)
+
+### Backlog / Next
+- Real Resend integration for contact form (blocked on API key)
+- Real Stripe checkout (currently UI-only order flow)
+- Cmd+K command palette + Saved Views
+- Direct GitHub-URL ingest (fetch a public repo without folder upload) — the natural next step for the "1-2 days later" workflow
+

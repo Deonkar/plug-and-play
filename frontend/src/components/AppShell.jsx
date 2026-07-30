@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../lib/auth";
 import {
-  Terminal, Users, FileText, ListTodo, BarChart3, Settings, LogOut, Menu, X, Package,
+  Terminal, Users, FileText, ListTodo, BarChart3, Settings, LogOut, Menu, X, Package, MessageSquare,
 } from "lucide-react";
 import ChatWidget from "./ChatWidget";
 import Badge from "./ui/pill";
@@ -28,6 +28,7 @@ export default function AppShell() {
       {isAdmin && <NavLink to="/app/context" className={linkCls} data-testid="nav-context" onClick={closeMobile}><FileText className="w-4 h-4"/> Context</NavLink>}
       {isAdmin && <NavLink to="/app/crm" className={linkCls} data-testid="nav-crm" onClick={closeMobile}><ListTodo className="w-4 h-4"/> CRM</NavLink>}
       {isAdmin && <NavLink to="/app/analytics" className={linkCls} data-testid="nav-analytics" onClick={closeMobile}><BarChart3 className="w-4 h-4"/> Analytics</NavLink>}
+      {isAdmin && <NavLink to="/app/chats" className={linkCls} data-testid="nav-chats" onClick={closeMobile}><MessageSquare className="w-4 h-4"/> Chat History</NavLink>}
       {isAdmin && <NavLink to="/app/services" className={linkCls} data-testid="nav-services" onClick={closeMobile}><Package className="w-4 h-4"/> Services</NavLink>}
       {isAdmin && <NavLink to="/app/settings" className={linkCls} data-testid="nav-settings" onClick={closeMobile}><Settings className="w-4 h-4"/> Settings</NavLink>}
     </>

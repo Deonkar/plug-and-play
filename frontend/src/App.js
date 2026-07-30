@@ -23,6 +23,8 @@ import Pricing from "./pages/marketing/Pricing";
 import Services from "./pages/marketing/Services";
 import AppServices from "./pages/Services";
 import ServicesCheckout from "./pages/ServicesCheckout";
+import RepoTree from "./pages/RepoTree";
+import Chats from "./pages/Chats";
 
 function Protected({ children, adminOnly }) {
   const { user, loading } = useAuth();
@@ -56,6 +58,8 @@ function App() {
                 <Route path="tasks" element={<Tasks />} />
                 <Route path="users" element={<Protected adminOnly><Users /></Protected>} />
                 <Route path="context" element={<Protected adminOnly><Context /></Protected>} />
+                <Route path="context/repos/:repo" element={<Protected adminOnly><RepoTree /></Protected>} />
+                <Route path="chats" element={<Protected adminOnly><Chats /></Protected>} />
                 <Route path="crm" element={<Protected adminOnly><CRM /></Protected>} />
                 <Route path="analytics" element={<Protected adminOnly><Analytics /></Protected>} />
                 <Route path="settings" element={<Protected adminOnly><Settings /></Protected>} />

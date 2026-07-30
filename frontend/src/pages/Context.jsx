@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
+import { Link } from "react-router-dom";
 import api from "../lib/api";
-import { UploadCloud, Github } from "lucide-react";
-import ContextTree from "../components/ContextTree";
+import { UploadCloud, Github, GitBranch, ChevronRight } from "lucide-react";
 
 export default function Context() {
   const [docs, setDocs] = useState([]);
@@ -91,22 +91,56 @@ export default function Context() {
       {uploading && <div className="text-xs font-mono text-muted-foreground mb-4" data-testid="upload-status">Uploading...</div>}
       {msg && <div className="text-xs font-mono text-primary mb-4" data-testid="upload-msg">{msg}</div>}
 
-      {/* INGESTED REPO TREES */}
+      {/* INGESTED REPO CARDS */}
       {trees.length > 0 && (
-        <div className="mb-8 space-y-4" data-testid="ingested-trees">
+        <div className="mb-8 space-y-3" data-testid="ingested-trees">
           <div className="flex items-baseline justify-between">
             <div>
               <div className="font-mono text-[10px] uppercase tracking-widest text-primary mb-1">/// ingested repos</div>
               <h2 className="font-display font-bold text-xl">What the bot actually sees</h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                Toggle a doc off to shrink the system prompt and save tokens on every chat.
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">Open a repo to architect its tree — pick which files feed the LLM.</p>
             </div>
             <div className="font-mono text-[10px] text-muted-foreground">{trees.length} repo{trees.length > 1 ? "s" : ""}</div>
           </div>
-          {trees.map((t) => (
-            <ContextTree key={t.repo_name} tree={t} onChanged={load} />
-          ))}
+          <div className="grid md:grid-cols-2 gap-3">
+            {trees.map((t) => {
+              const tokens = Math.round((t.included_chars || 0) / 4);
+              const totalTokens = Math.round((t.total_chars || 0) / 4);
+              const saved = totalTokens - tokens;
+              const pctIncluded = t.file_count ? Math.round((t.included_files / t.file_count) * 100) : 0;
+              const diff = t.last_diff || { added: [], removed: [], changed: [] };
+              const hasDiff = diff.added.length + diff.removed.length + diff.changed.length > 0;
+              return (
+                <Link
+                  key={t.repo_name}
+                  to={`/app/context/repos/${encodeURIComponent(t.repo_name)}`}
+                  className="border border-border hover:border-primary/60 bg-card p-4 flex items-center gap-4 transition-colors group"
+                  data-testid={`repo-card-${t.repo_name}`}
+                >
+                  <GitBranch className="w-5 h-5 text-primary shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-display font-bold text-sm truncate">{t.repo_name}</div>
+                    <div className="font-mono text-[10px] text-muted-foreground mt-0.5">
+                      {t.included_files}/{t.file_count} files · ≈ {tokens.toLocaleString()} tk
+                      {saved > 0 && <span className="text-emerald-400 ml-1">· −{saved.toLocaleString()} saved</span>}
+                    </div>
+                    <div className="mt-2 h-1 bg-black/40 relative overflow-hidden">
+                      <div className="h-full bg-primary/70" style={{ width: `${pctIncluded}%` }} />
+                    </div>
+                    {hasDiff && (
+                      <div className="font-mono text-[9px] mt-1.5 flex items-center gap-2">
+                        <span className="text-emerald-400">+{diff.added.length}</span>
+                        <span className="text-primary">−{diff.removed.length}</span>
+                        <span className="text-orange-400">~{diff.changed.length}</span>
+                        <span className="text-muted-foreground">since last ingest</span>
+                      </div>
+                    )}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary shrink-0" />
+                </Link>
+              );
+            })}
+          </div>
         </div>
       )}
 

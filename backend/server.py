@@ -134,6 +134,12 @@ class ContextToggleIn(BaseModel):
     included: bool
 
 
+class TreeNodeToggleIn(BaseModel):
+    path: str
+    included: bool
+    cascade: bool = True  # when a dir is toggled, apply to all descendants
+
+
 class IngestFile(BaseModel):
     path: str
     content: str
@@ -377,8 +383,8 @@ async def toggle_context(doc_id: str, inp: ContextToggleIn, user=Depends(require
 
 
 def _build_tree(paths_and_sizes: List[dict]) -> dict:
-    """Turn a flat list of {path, size} into a nested tree {name, path, size, kind, children}."""
-    root = {"name": "root", "path": "", "size": 0, "kind": "dir", "children": {}}
+    """Turn a flat list of {path, size} into a nested tree {name, path, size, kind, included, children}."""
+    root = {"name": "root", "path": "", "size": 0, "kind": "dir", "included": True, "children": {}}
     for entry in paths_and_sizes:
         parts = [p for p in entry["path"].split("/") if p]
         node = root
@@ -390,6 +396,7 @@ def _build_tree(paths_and_sizes: List[dict]) -> dict:
                     "path": "/".join(parts[: i + 1]),
                     "size": 0,
                     "kind": "file" if is_leaf else "dir",
+                    "included": True,
                     "children": {},
                 }
             child = node["children"][part]
@@ -397,7 +404,6 @@ def _build_tree(paths_and_sizes: List[dict]) -> dict:
                 child["size"] = entry["size"]
                 child["kind"] = "file"
             node = child
-        # bubble size up
     def finalize(n):
         kids = list(n["children"].values())
         kids.sort(key=lambda k: (k["kind"] != "dir", k["name"].lower()))
@@ -410,11 +416,70 @@ def _build_tree(paths_and_sizes: List[dict]) -> dict:
     return root
 
 
+def _walk_nodes(node, visitor):
+    """Depth-first walk; visitor(node) may return False to skip descending."""
+    if visitor(node) is False:
+        return
+    for k in node.get("children", []) or []:
+        _walk_nodes(k, visitor)
+
+
+def _apply_inclusion_flags(new_tree: dict, prev_tree: dict) -> dict:
+    """Copy `included` flags from prev_tree onto matching paths of new_tree (for re-ingest)."""
+    prev_by_path = {}
+    def collect(n):
+        prev_by_path[n.get("path", "")] = n.get("included", True)
+    _walk_nodes(prev_tree, collect)
+    def apply(n):
+        p = n.get("path", "")
+        if p in prev_by_path:
+            n["included"] = prev_by_path[p]
+    _walk_nodes(new_tree, apply)
+    return new_tree
+
+
+def _tree_diff(prev_files: dict, new_files: dict) -> dict:
+    """Compare {path: size} maps and return added / removed / changed lists."""
+    prev_paths = set(prev_files.keys())
+    new_paths = set(new_files.keys())
+    added = sorted(new_paths - prev_paths)
+    removed = sorted(prev_paths - new_paths)
+    changed = sorted([p for p in (prev_paths & new_paths) if prev_files[p] != new_files[p]])
+    return {"added": added, "removed": removed, "changed": changed}
+
+
+def _tree_included_paths(tree: dict) -> List[str]:
+    """Return the file paths that are still included, respecting parent-directory exclusions."""
+    included: List[str] = []
+    def visit(node, parent_included):
+        my_included = parent_included and node.get("included", True)
+        if node["kind"] == "file" and my_included:
+            included.append(node["path"])
+        for k in node.get("children", []) or []:
+            visit(k, my_included)
+    for k in tree.get("children", []) or []:
+        visit(k, True)
+    return included
+
+
+def _tree_included_chars(tree: dict) -> int:
+    total = 0
+    def visit(node, parent_included):
+        my_included = parent_included and node.get("included", True)
+        if node["kind"] == "file" and my_included:
+            total_ref[0] += node.get("size", 0)
+        for k in node.get("children", []) or []:
+            visit(k, my_included)
+    total_ref = [0]
+    for k in tree.get("children", []) or []:
+        visit(k, True)
+    return total_ref[0]
+
+
 @api.get("/context/trees")
 async def list_context_trees(user=Depends(require_role("super_admin", "admin"))):
     """All ingested repo trees for this company + their linked doc-inclusion state."""
     trees = await db.context_trees.find({"company_id": user["company_id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
-    # Attach the linked docs' current included flag & size so the UI can render the counter live.
     for t in trees:
         docs = await db.context_docs.find(
             {"company_id": user["company_id"], "repo_name": t["repo_name"], "source": "auto-ingest"},
@@ -425,7 +490,74 @@ async def list_context_trees(user=Depends(require_role("super_admin", "admin")))
             d["included"] = d.get("included", True)
             d.pop("content", None)
         t["docs"] = docs
+        # Live-computed inclusion stats so the UI can render a counter without re-walking
+        included_chars = _tree_included_chars(t.get("tree", {}))
+        t["included_chars"] = included_chars
+        t["included_files"] = len(_tree_included_paths(t.get("tree", {})))
     return trees
+
+
+@api.get("/context/trees/{repo_name}")
+async def get_context_tree(repo_name: str, user=Depends(require_role("super_admin", "admin"))):
+    t = await db.context_trees.find_one({"company_id": user["company_id"], "repo_name": repo_name}, {"_id": 0})
+    if not t:
+        raise HTTPException(404, "Repo not found")
+    docs = await db.context_docs.find(
+        {"company_id": user["company_id"], "repo_name": repo_name, "source": "auto-ingest"},
+        {"_id": 0, "id": 1, "title": 1, "kind": 1, "included": 1, "content": 1, "updated_at": 1},
+    ).to_list(20)
+    for d in docs:
+        d["chars"] = len(d.get("content") or "")
+        d["included"] = d.get("included", True)
+        d.pop("content", None)
+    t["docs"] = docs
+    t["included_chars"] = _tree_included_chars(t.get("tree", {}))
+    t["included_files"] = len(_tree_included_paths(t.get("tree", {})))
+    return t
+
+
+@api.patch("/context/trees/{repo_name}/toggle")
+async def toggle_tree_node(repo_name: str, inp: TreeNodeToggleIn, user=Depends(require_role("super_admin", "admin"))):
+    """Toggle a single node's `included` flag. If `cascade` (default), descendants inherit."""
+    t = await db.context_trees.find_one({"company_id": user["company_id"], "repo_name": repo_name}, {"_id": 0})
+    if not t:
+        raise HTTPException(404, "Repo not found")
+    tree = t.get("tree") or {}
+    target_found = [False]
+    def visit(node, force_value=None):
+        if force_value is not None:
+            node["included"] = force_value
+        if node.get("path", "") == inp.path:
+            node["included"] = inp.included
+            target_found[0] = True
+            if inp.cascade:
+                for k in node.get("children", []) or []:
+                    visit(k, force_value=inp.included)
+            return
+        for k in node.get("children", []) or []:
+            visit(k, force_value=force_value)
+    visit(tree)
+    if not target_found[0]:
+        raise HTTPException(404, "Path not in tree")
+    await db.context_trees.update_one(
+        {"company_id": user["company_id"], "repo_name": repo_name},
+        {"$set": {"tree": tree, "updated_at": now_iso()}},
+    )
+    return {
+        "ok": True,
+        "included_chars": _tree_included_chars(tree),
+        "included_files": len(_tree_included_paths(tree)),
+    }
+
+
+@api.delete("/context/trees/{repo_name}")
+async def delete_context_tree(repo_name: str, user=Depends(require_role("super_admin", "admin"))):
+    r = await db.context_trees.delete_one({"company_id": user["company_id"], "repo_name": repo_name})
+    if r.deleted_count == 0:
+        raise HTTPException(404, "Repo not found")
+    # Also delete the auto-ingested docs tied to this repo
+    await db.context_docs.delete_many({"company_id": user["company_id"], "repo_name": repo_name, "source": "auto-ingest"})
+    return {"ok": True}
 
 
 # --------- CRM ---------
@@ -965,20 +1097,39 @@ async def upload_context_files(
 
 @api.post("/context/ingest")
 async def ingest_codebase(inp: IngestIn, user=Depends(require_role("super_admin", "admin"))):
-    """Accepts a set of code/config files and uses the LLM to synthesize structured context docs
-    (architecture, schema, module map) so the chatbot understands the codebase automatically."""
+    """Accepts a set of code/config files. If this repo_name was ingested before, computes a diff and
+    preserves the user's per-file inclusion selections. Only INCLUDED files are shown to the LLM."""
     if not inp.files:
         raise HTTPException(400, "No files provided")
 
-    # Build a compact repo listing + snippets (cap size)
-    MAX_TOTAL = 60000  # chars
+    new_paths = [{"path": f.path, "size": len(f.content)} for f in inp.files]
+    new_tree = _build_tree(new_paths)
+
+    prev = await db.context_trees.find_one({"company_id": user["company_id"], "repo_name": inp.repo_name}, {"_id": 0})
+    diff = {"added": [], "removed": [], "changed": []}
+    if prev and prev.get("tree"):
+        prev_files_map = {}
+        def coll(n):
+            if n["kind"] == "file":
+                prev_files_map[n["path"]] = n.get("size", 0)
+        _walk_nodes(prev["tree"], coll)
+        new_files_map = {f.path: len(f.content) for f in inp.files}
+        diff = _tree_diff(prev_files_map, new_files_map)
+        new_tree = _apply_inclusion_flags(new_tree, prev["tree"])
+
+    included_paths = set(_tree_included_paths(new_tree))
+    files_to_feed = [f for f in inp.files if f.path in included_paths] if prev else inp.files
+    if not files_to_feed:
+        raise HTTPException(400, "All files are excluded — include at least one file")
+
+    MAX_TOTAL = 60000
     used = 0
     parts = [f"# Repository: {inp.repo_name}", "", "## File tree"]
-    for f in inp.files:
+    for f in files_to_feed:
         parts.append(f"- {f.path} ({len(f.content)} chars)")
     parts.append("")
     parts.append("## File contents")
-    for f in inp.files:
+    for f in files_to_feed:
         header = f"\n### {f.path}\n"
         remaining = MAX_TOTAL - used - len(header)
         if remaining <= 0:
@@ -1010,7 +1161,6 @@ async def ingest_codebase(inp: IngestIn, user=Depends(require_role("super_admin"
     except Exception as e:
         raise HTTPException(500, f"LLM ingest error: {e}")
 
-    # Split and save
     def extract(marker: str) -> str:
         if marker not in summary:
             return ""
@@ -1021,15 +1171,16 @@ async def ingest_codebase(inp: IngestIn, user=Depends(require_role("super_admin"
         return after.strip()
 
     sections = {
-        "Architecture": ("dev", extract("===DOC:ARCHITECTURE===")),
+        "Architecture":    ("dev", extract("===DOC:ARCHITECTURE===")),
         "Database Schema": ("dev", extract("===DOC:SCHEMA===")),
-        "Module Map": ("dev", extract("===DOC:MODULES===")),
+        "Module Map":      ("dev", extract("===DOC:MODULES===")),
     }
     created = []
     for title, (kind, content) in sections.items():
         if not content:
             continue
         title_full = f"{inp.repo_name} — {title}"
+        existing = await db.context_docs.find_one({"company_id": user["company_id"], "title": title_full}, {"included": 1})
         doc = {
             "id": str(uuid.uuid4()),
             "company_id": user["company_id"],
@@ -1040,9 +1191,8 @@ async def ingest_codebase(inp: IngestIn, user=Depends(require_role("super_admin"
             "updated_at": now_iso(),
             "source": "auto-ingest",
             "repo_name": inp.repo_name,
-            "included": True,
+            "included": (existing or {}).get("included", True),
         }
-        # Upsert by title within company
         await db.context_docs.update_one(
             {"company_id": user["company_id"], "title": title_full},
             {"$set": doc}, upsert=True,
@@ -1050,23 +1200,59 @@ async def ingest_codebase(inp: IngestIn, user=Depends(require_role("super_admin"
         doc.pop("_id", None)
         created.append(doc)
 
-    # Persist the file tree so the admin can inspect and prune what was ingested
-    tree = _build_tree([{"path": f.path, "size": len(f.content)} for f in inp.files])
     total_chars = sum(len(f.content) for f in inp.files)
     await db.context_trees.update_one(
         {"company_id": user["company_id"], "repo_name": inp.repo_name},
         {"$set": {
-            "id": str(uuid.uuid4()),
+            "id": (prev or {}).get("id", str(uuid.uuid4())),
             "company_id": user["company_id"],
             "repo_name": inp.repo_name,
-            "tree": tree,
+            "tree": new_tree,
             "file_count": len(inp.files),
             "total_chars": total_chars,
-            "created_at": now_iso(),
+            "last_diff": diff,
+            "created_at": (prev or {}).get("created_at", now_iso()),
             "updated_at": now_iso(),
         }}, upsert=True,
     )
-    return {"created": len(created), "docs": created, "file_count": len(inp.files), "total_chars": total_chars}
+    return {
+        "created": len(created), "docs": created,
+        "file_count": len(inp.files), "total_chars": total_chars,
+        "diff": diff, "reingest": bool(prev),
+    }
+
+
+# --------- Chat history (admin) ---------
+@api.get("/admin/chats")
+async def admin_chat_history(
+    user=Depends(require_role("super_admin", "admin")),
+    user_id: Optional[str] = None,
+    range: str = "14d",   # 7d | 14d | 30d | all
+    cached_only: Optional[bool] = None,
+    q: Optional[str] = None,
+    limit: int = 200,
+):
+    """Full chat log for admins. Filterable by user, date range, cached-only, keyword."""
+    days_map = {"7d": 7, "14d": 14, "30d": 30}
+    days = days_map.get(range)
+    match: Dict[str, Any] = {"company_id": user["company_id"]}
+    if days is not None:
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        match["created_at"] = {"$gte": since}
+    if user_id:
+        match["user_id"] = user_id
+    if cached_only is True:
+        match["cache_hit"] = True
+    if q:
+        match["message"] = {"$regex": q, "$options": "i"}
+    rows = await db.chat_logs.find(
+        match,
+        {"_id": 0, "id": 1, "user_id": 1, "user_name": 1, "user_role": 1,
+         "message": 1, "answer": 1, "tokens_in": 1, "tokens_out": 1,
+         "cache_hit": 1, "created_at": 1},
+    ).sort("created_at", -1).to_list(min(limit, 500))
+    total = await db.chat_logs.count_documents(match)
+    return {"items": rows, "total": total, "filters": {"user_id": user_id, "range": range, "cached_only": cached_only, "q": q}}
 
 
 # --------- Settings ---------
