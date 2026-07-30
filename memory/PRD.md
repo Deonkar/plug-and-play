@@ -315,3 +315,37 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 - Cmd+K command palette + Saved Views
 - Direct GitHub-URL ingest (fetch a public repo without folder upload) — the natural next step for the "1-2 days later" workflow
 
+
+
+## Update — Session 19 (Feb 2026) — Security Audit Remediation
+Ran the security audit against the deployed app. Verdict: **FAIL — action required** (1 HIGH + 3 MEDIUM). All findings fixed:
+
+### SEC-001 HIGH — Cross-tenant PII leak via `/api/admin/contact` and `/api/admin/waitlist`
+- **Fix**: gated both endpoints behind a new `PLATFORM_OWNER_EMAIL` env var; any non-owner receives 403. Confirmed via curl (`admin@acme.demo` → 403).
+- Recommendation to owner: set `PLATFORM_OWNER_EMAIL=tylordyron@gmail.com` in `backend/.env` before deploying.
+
+### SEC-002 MEDIUM — Blind SSRF via arbitrary `slack_webhook_url`
+- **Fix**: new `_is_valid_slack_webhook()` helper; both write-time (`PUT /settings`) and send-time (`send_slack`) reject anything that isn't `https://hooks.slack.com/…`. Verified: SSRF payload targeting `169.254.169.254` returns 400.
+
+### SEC-003 MEDIUM — Regex injection / ReDoS in `?q=` filters
+- **Fix**: all three search endpoints (`/api/leads`, `/api/tasks`, `/api/admin/chats`) now run user input through `re.escape()` before feeding to `$regex`, and cap the search string to 80 chars. Verified: `?q=.*++` returns cleanly.
+
+### SEC-004 MEDIUM — Hard-coded self-restoring demo credentials
+- **Fix**: `seed_demo()` now checks `SEED_DEMO_DATA` env var — set to `false` in production to skip the seed entirely. Default `true` for the preview.
+
+### Additional P3 hardening applied
+- `key_preview` on `GET /settings` no longer leaks any part of the API key (was showing first-6 + last-4)
+- LLM exception messages sanitized: `HTTPException(500, "LLM error")` instead of `f"LLM error: {e}"` (still logged via `logger.exception`)
+- Upload cap: `POST /context/upload` rejects >50 files/request or any file >2MB (413)
+
+### Positive controls confirmed by audit
+- JWT alg pinned HS256, bcrypt hashing, `password_hash` never returned
+- Agent scoping on `/leads`, `/tasks`, `/overview`, `/chat` — cannot be bypassed via query params
+- DOMPurify allow-list + ReactMarkdown without `rehypeRaw` — no XSS bypass
+- Blocked-user check per request; role enforcement on every write endpoint
+
+### Backlog / Next
+- Login throttling / brute-force protection on `/api/auth/login`
+- Server-side JWT revocation on logout / role change (currently client-side only)
+- CORS whitelist from env instead of default `*` (needs prod domain list first)
+- Direct GitHub URL ingest (deferred from Session 18)

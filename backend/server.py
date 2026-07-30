@@ -13,6 +13,7 @@ from typing import Optional, List, Literal, Dict, Any
 
 import bcrypt
 import jwt
+import re
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
@@ -25,6 +26,8 @@ DB_NAME = os.environ['DB_NAME']
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGO = "HS256"
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+# Platform owner — only this email can view cross-tenant marketing leads (contact/waitlist).
+PLATFORM_OWNER_EMAIL = os.environ.get('PLATFORM_OWNER_EMAIL', '').strip().lower()
 
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
@@ -580,10 +583,12 @@ async def list_leads(
     if priority:
         query["priority"] = priority
     if q:
+        # SEC-003: escape user input before feeding to $regex; cap length
+        safe_q = re.escape(q[:80])
         query["$or"] = [
-            {"name":  {"$regex": q, "$options": "i"}},
-            {"email": {"$regex": q, "$options": "i"}},
-            {"notes": {"$regex": q, "$options": "i"}},
+            {"name":  {"$regex": safe_q, "$options": "i"}},
+            {"email": {"$regex": safe_q, "$options": "i"}},
+            {"notes": {"$regex": safe_q, "$options": "i"}},
         ]
     leads = await db.leads.find(query, {"_id": 0}).to_list(500)
     if escalated is True:
@@ -627,9 +632,11 @@ async def list_tasks(
     if due_before:
         query["due_date"] = {"$lte": due_before}
     if q:
+        # SEC-003: escape user input before feeding to $regex; cap length
+        safe_q = re.escape(q[:80])
         query["$or"] = [
-            {"title":       {"$regex": q, "$options": "i"}},
-            {"description": {"$regex": q, "$options": "i"}},
+            {"title":       {"$regex": safe_q, "$options": "i"}},
+            {"description": {"$regex": safe_q, "$options": "i"}},
         ]
     tasks = await db.tasks.find(query, {"_id": 0}).to_list(500)
     if overdue is True:
@@ -748,7 +755,7 @@ async def chat_endpoint(inp: ChatIn, user=Depends(current_user)):
             answer = await chat.send_message(UserMessage(text=message))
         except Exception as e:
             logger.exception("LLM error")
-            raise HTTPException(500, f"LLM error: {str(e)}")
+            raise HTTPException(500, "LLM error")
 
         # Approximate token counts (chars/4 heuristic)
         tokens_in = max(1, (len(system_prompt) + len(message)) // 4)
@@ -1008,10 +1015,23 @@ def is_lead_escalated(l: dict) -> bool:
         return False
 
 
+def _is_valid_slack_webhook(url: str) -> bool:
+    """SEC-002: only allow Slack's official webhook host."""
+    try:
+        from urllib.parse import urlparse
+        u = urlparse(url)
+        return u.scheme == "https" and u.hostname == "hooks.slack.com"
+    except Exception:
+        return False
+
+
 async def send_slack(company_id: str, text: str):
     company = await db.companies.find_one({"id": company_id}, {"_id": 0})
     url = (company or {}).get("settings", {}).get("slack_webhook_url")
     if not url:
+        return
+    if not _is_valid_slack_webhook(url):
+        logger.warning("Rejected slack webhook (not hooks.slack.com host)")
         return
     try:
         import httpx
@@ -1061,9 +1081,16 @@ async def upload_context_files(
     files: List[UploadFile] = File(...),
     user=Depends(require_role("super_admin", "admin")),
 ):
+    # SEC hardening: cap file count + per-file size
+    MAX_FILES = 50
+    MAX_BYTES_PER_FILE = 2 * 1024 * 1024  # 2 MB
+    if len(files) > MAX_FILES:
+        raise HTTPException(413, f"Too many files (max {MAX_FILES} per upload)")
     created = []
     for f in files:
         raw = await f.read()
+        if len(raw) > MAX_BYTES_PER_FILE:
+            raise HTTPException(413, f"'{f.filename}' exceeds 2 MB limit")
         try:
             content = raw.decode("utf-8")
         except UnicodeDecodeError:
@@ -1159,7 +1186,8 @@ async def ingest_codebase(inp: IngestIn, user=Depends(require_role("super_admin"
     try:
         summary = await chat.send_message(UserMessage(text=repo_dump))
     except Exception as e:
-        raise HTTPException(500, f"LLM ingest error: {e}")
+        logger.exception("LLM ingest error")
+        raise HTTPException(500, "LLM ingest error")
 
     def extract(marker: str) -> str:
         if marker not in summary:
@@ -1244,7 +1272,8 @@ async def admin_chat_history(
     if cached_only is True:
         match["cache_hit"] = True
     if q:
-        match["message"] = {"$regex": q, "$options": "i"}
+        # SEC-003: escape user input before feeding to $regex; cap length
+        match["message"] = {"$regex": re.escape(q[:80]), "$options": "i"}
     rows = await db.chat_logs.find(
         match,
         {"_id": 0, "id": 1, "user_id": 1, "user_name": 1, "user_role": 1,
@@ -1268,7 +1297,7 @@ async def get_settings(user=Depends(require_role("super_admin", "admin"))):
         "llm_provider": s.get("llm_provider", "anthropic"),
         "llm_model": s.get("llm_model", "claude-sonnet-4-6"),
         "has_custom_key": bool(override),
-        "key_preview": (override[:6] + "..." + override[-4:]) if override else None,
+        "key_preview": None,  # SEC hardening: never leak any part of the key
         "slack_webhook_url": s.get("slack_webhook_url") or "",
     }
 
@@ -1279,13 +1308,22 @@ async def update_settings(inp: SettingsIn, user=Depends(require_role("super_admi
     if inp.api_key_override is not None:
         upd["settings.api_key_override"] = inp.api_key_override or None
     if inp.slack_webhook_url is not None:
-        upd["settings.slack_webhook_url"] = inp.slack_webhook_url or None
+        # SEC-002: reject anything that isn't the official Slack host
+        url = (inp.slack_webhook_url or "").strip()
+        if url and not _is_valid_slack_webhook(url):
+            raise HTTPException(400, "Slack webhook must be https://hooks.slack.com/…")
+        upd["settings.slack_webhook_url"] = url or None
     await db.companies.update_one({"id": user["company_id"]}, {"$set": upd})
     return {"ok": True}
 
 
 # --------- Seed ---------
 async def seed_demo():
+    # SEC-004: gate demo seed behind an explicit env var so prod tenants never inherit
+    # the well-known admin@acme.demo / admin123 credentials. Default 'true' for previews.
+    if os.environ.get("SEED_DEMO_DATA", "true").lower() not in ("1", "true", "yes"):
+        logger.info("SEED_DEMO_DATA disabled — skipping demo seed")
+        return
     company_id = "demo-company"
     existing = await db.companies.find_one({"id": company_id})
     if existing:
@@ -1600,12 +1638,18 @@ async def services_checkout(inp: ServicesIn, user=Depends(require_role("super_ad
 
 @api.get("/admin/contact")
 async def list_contact(user=Depends(require_role("super_admin", "admin"))):
+    # SEC-001: cross-tenant marketing leads — restrict to platform owner only
+    if not PLATFORM_OWNER_EMAIL or (user.get("email", "").lower() != PLATFORM_OWNER_EMAIL):
+        raise HTTPException(403, "Forbidden")
     docs = await db.contact_submissions.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
     return docs
 
 
 @api.get("/admin/waitlist")
 async def list_waitlist(user=Depends(require_role("super_admin", "admin"))):
+    # SEC-001: cross-tenant marketing leads — restrict to platform owner only
+    if not PLATFORM_OWNER_EMAIL or (user.get("email", "").lower() != PLATFORM_OWNER_EMAIL):
+        raise HTTPException(403, "Forbidden")
     docs = await db.waitlist.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
     return docs
 
