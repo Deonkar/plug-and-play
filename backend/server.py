@@ -102,6 +102,17 @@ class SettingsIn(BaseModel):
     llm_provider: str = "anthropic"
     llm_model: str = "claude-sonnet-4-6"
     api_key_override: Optional[str] = None
+    slack_webhook_url: Optional[str] = None
+
+
+class IngestFile(BaseModel):
+    path: str
+    content: str
+
+
+class IngestIn(BaseModel):
+    repo_name: str
+    files: List[IngestFile]
 
 
 # --------- Auth Helpers ---------
@@ -537,6 +548,204 @@ async def analytics_overview(user=Depends(require_role("super_admin", "admin")))
     }
 
 
+# --------- Escalations ---------
+def is_task_escalated(t: dict) -> bool:
+    if t.get("status") == "done":
+        return False
+    if t.get("priority") != "urgent":
+        return False
+    try:
+        due = datetime.fromisoformat(t["due_date"].replace("Z", "+00:00"))
+        return datetime.now(timezone.utc) > due
+    except Exception:
+        return False
+
+
+def is_lead_escalated(l: dict) -> bool:
+    # Lead is escalated if status hot and no touch in 48h
+    if l.get("status") != "hot":
+        return False
+    try:
+        last = datetime.fromisoformat((l.get("last_touched_at") or l["created_at"]).replace("Z", "+00:00"))
+        return (datetime.now(timezone.utc) - last) > timedelta(hours=48)
+    except Exception:
+        return False
+
+
+async def send_slack(company_id: str, text: str):
+    company = await db.companies.find_one({"id": company_id}, {"_id": 0})
+    url = (company or {}).get("settings", {}).get("slack_webhook_url")
+    if not url:
+        return
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=5) as hc:
+            await hc.post(url, json={"text": text})
+    except Exception as e:
+        logger.warning(f"Slack send failed: {e}")
+
+
+@api.get("/escalations")
+async def get_escalations(user=Depends(current_user)):
+    q_task = {"company_id": user["company_id"], "priority": "urgent", "status": {"$ne": "done"}}
+    q_lead = {"company_id": user["company_id"], "status": "hot"}
+    if user["role"] == "agent":
+        q_task["assigned_to"] = user["id"]
+        q_lead["assigned_to"] = user["id"]
+    tasks = await db.tasks.find(q_task, {"_id": 0}).to_list(200)
+    leads = await db.leads.find(q_lead, {"_id": 0}).to_list(200)
+
+    esc_tasks = [t for t in tasks if is_task_escalated(t)]
+    esc_leads = [l for l in leads if is_lead_escalated(l)]
+
+    # Fire Slack pings for newly seen escalations (dedupe per task/day)
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    for t in esc_tasks:
+        key = f"task:{t['id']}:{today}"
+        exists = await db.slack_sent.find_one({"key": key})
+        if not exists:
+            await db.slack_sent.insert_one({"key": key, "company_id": user["company_id"], "sent_at": now_iso()})
+            await send_slack(user["company_id"], f":rotating_light: Escalation — task *{t['title']}* (lead {t.get('lead_id','')[:8]}) is overdue and marked urgent.")
+    for l in esc_leads:
+        key = f"lead:{l['id']}:{today}"
+        exists = await db.slack_sent.find_one({"key": key})
+        if not exists:
+            await db.slack_sent.insert_one({"key": key, "company_id": user["company_id"], "sent_at": now_iso()})
+            await send_slack(user["company_id"], f":warning: Escalation — hot lead *{l['name']}* untouched in 48h.")
+
+    return {"tasks": esc_tasks, "leads": esc_leads, "total": len(esc_tasks) + len(esc_leads)}
+
+
+# --------- Bulk upload / Codebase ingest ---------
+from fastapi import UploadFile, File
+
+
+@api.post("/context/upload")
+async def upload_context_files(
+    files: List[UploadFile] = File(...),
+    user=Depends(require_role("super_admin", "admin")),
+):
+    created = []
+    for f in files:
+        raw = await f.read()
+        try:
+            content = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            continue
+        if not content.strip():
+            continue
+        title = f.filename or "Untitled.md"
+        title_clean = title.rsplit(".", 1)[0].replace("_", " ").replace("-", " ").title()
+        kind = "general"
+        low = title.lower()
+        if any(x in low for x in ["dev", "arch", "code", "schema", "backend", "api"]):
+            kind = "dev"
+        elif any(x in low for x in ["product", "prd", "spec"]):
+            kind = "product"
+        elif any(x in low for x in ["ideology", "principle", "value", "playbook"]):
+            kind = "ideology"
+        doc = {
+            "id": str(uuid.uuid4()),
+            "company_id": user["company_id"],
+            "title": title_clean,
+            "content": content,
+            "kind": kind,
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+        }
+        await db.context_docs.insert_one(doc)
+        doc.pop("_id", None)
+        created.append(doc)
+    return {"created": len(created), "docs": created}
+
+
+@api.post("/context/ingest")
+async def ingest_codebase(inp: IngestIn, user=Depends(require_role("super_admin", "admin"))):
+    """Accepts a set of code/config files and uses the LLM to synthesize structured context docs
+    (architecture, schema, module map) so the chatbot understands the codebase automatically."""
+    if not inp.files:
+        raise HTTPException(400, "No files provided")
+
+    # Build a compact repo listing + snippets (cap size)
+    MAX_TOTAL = 60000  # chars
+    used = 0
+    parts = [f"# Repository: {inp.repo_name}", "", "## File tree"]
+    for f in inp.files:
+        parts.append(f"- {f.path} ({len(f.content)} chars)")
+    parts.append("")
+    parts.append("## File contents")
+    for f in inp.files:
+        header = f"\n### {f.path}\n"
+        remaining = MAX_TOTAL - used - len(header)
+        if remaining <= 0:
+            parts.append(f"\n### {f.path}\n(truncated)")
+            continue
+        snippet = f.content[:remaining]
+        parts.append(header + snippet)
+        used += len(header) + len(snippet)
+    repo_dump = "\n".join(parts)
+
+    settings = (await db.companies.find_one({"id": user["company_id"]}, {"_id": 0}) or {}).get("settings", {})
+    provider = settings.get("llm_provider", "anthropic")
+    model = settings.get("llm_model", "claude-sonnet-4-6")
+    api_key = settings.get("api_key_override") or EMERGENT_LLM_KEY
+
+    system = (
+        "You are a senior engineer ingesting a codebase for a company chatbot. "
+        "Given a repo dump (file tree + contents), output THREE Markdown documents delimited exactly by these headers: "
+        "'===DOC:ARCHITECTURE===', '===DOC:SCHEMA===', '===DOC:MODULES==='. "
+        "ARCHITECTURE: high-level system, tech stack, main flows. "
+        "SCHEMA: every database table/collection with fields and relationships (infer from models/migrations). "
+        "MODULES: for each significant file/module, one bullet 'path — what it does'. "
+        "Be concise, factual, technical."
+    )
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    chat = LlmChat(api_key=api_key, session_id=f"ingest-{user['company_id']}-{uuid.uuid4()}", system_message=system).with_model(provider, model)
+    try:
+        summary = await chat.send_message(UserMessage(text=repo_dump))
+    except Exception as e:
+        raise HTTPException(500, f"LLM ingest error: {e}")
+
+    # Split and save
+    def extract(marker: str) -> str:
+        if marker not in summary:
+            return ""
+        after = summary.split(marker, 1)[1]
+        for other in ("===DOC:ARCHITECTURE===", "===DOC:SCHEMA===", "===DOC:MODULES==="):
+            if other != marker and other in after:
+                after = after.split(other, 1)[0]
+        return after.strip()
+
+    sections = {
+        "Architecture": ("dev", extract("===DOC:ARCHITECTURE===")),
+        "Database Schema": ("dev", extract("===DOC:SCHEMA===")),
+        "Module Map": ("dev", extract("===DOC:MODULES===")),
+    }
+    created = []
+    for title, (kind, content) in sections.items():
+        if not content:
+            continue
+        title_full = f"{inp.repo_name} — {title}"
+        doc = {
+            "id": str(uuid.uuid4()),
+            "company_id": user["company_id"],
+            "title": title_full,
+            "content": content,
+            "kind": kind,
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+            "source": "auto-ingest",
+        }
+        # Upsert by title within company
+        await db.context_docs.update_one(
+            {"company_id": user["company_id"], "title": title_full},
+            {"$set": doc}, upsert=True,
+        )
+        doc.pop("_id", None)
+        created.append(doc)
+    return {"created": len(created), "docs": created}
+
+
 # --------- Settings ---------
 @api.get("/settings")
 async def get_settings(user=Depends(require_role("super_admin", "admin"))):
@@ -551,6 +760,7 @@ async def get_settings(user=Depends(require_role("super_admin", "admin"))):
         "llm_model": s.get("llm_model", "claude-sonnet-4-6"),
         "has_custom_key": bool(override),
         "key_preview": (override[:6] + "..." + override[-4:]) if override else None,
+        "slack_webhook_url": s.get("slack_webhook_url") or "",
     }
 
 
@@ -559,6 +769,8 @@ async def update_settings(inp: SettingsIn, user=Depends(require_role("super_admi
     upd = {"settings.llm_provider": inp.llm_provider, "settings.llm_model": inp.llm_model}
     if inp.api_key_override is not None:
         upd["settings.api_key_override"] = inp.api_key_override or None
+    if inp.slack_webhook_url is not None:
+        upd["settings.slack_webhook_url"] = inp.slack_webhook_url or None
     await db.companies.update_one({"id": user["company_id"]}, {"$set": upd})
     return {"ok": True}
 

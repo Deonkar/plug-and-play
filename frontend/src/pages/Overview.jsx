@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../lib/api";
 import { useAuth } from "../lib/auth";
+import EscalationBanner from "../components/EscalationBanner";
 
 export default function Overview() {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ export default function Overview() {
         <h1 className="font-display font-black text-4xl">Hi {user?.name?.split(" ")[0]}.</h1>
         <p className="text-muted-foreground mt-1">Here's what needs your attention.</p>
       </div>
+      <EscalationBanner />
       <div className="grid grid-cols-3 gap-4 mb-8">
         <Stat label="Open Tasks" value={open.length} testid="stat-tasks"/>
         <Stat label="Urgent" value={urgent.length} accent testid="stat-urgent"/>

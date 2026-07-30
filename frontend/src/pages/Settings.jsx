@@ -18,6 +18,7 @@ export default function Settings() {
       await api.put("/settings", {
         llm_provider: s.llm_provider, llm_model: s.llm_model,
         api_key_override: s.new_key ?? undefined,
+        slack_webhook_url: s.slack_webhook_url ?? undefined,
       });
       setMsg("Saved.");
       const { data } = await api.get("/settings"); setS({...data});
@@ -54,6 +55,15 @@ export default function Settings() {
             placeholder={s.has_custom_key ? `current: ${s.key_preview}` : "using Emergent Universal Key"}
             onChange={e=>setS({...s, new_key: e.target.value})} data-testid="settings-key"/>
           <p className="text-xs font-mono text-muted-foreground mt-1">Leave blank to keep current. Type "-" and save to clear.</p>
+        </div>
+        <div>
+          <label className="font-mono text-xs uppercase text-muted-foreground">Slack webhook URL</label>
+          <input className="input-tech mt-1" disabled={disabled}
+            placeholder="https://hooks.slack.com/services/..."
+            value={s.slack_webhook_url || ""}
+            onChange={e=>setS({...s, slack_webhook_url: e.target.value})}
+            data-testid="settings-slack"/>
+          <p className="text-xs font-mono text-muted-foreground mt-1">Escalation alerts (urgent + overdue tasks, untouched hot leads) will ping this webhook.</p>
         </div>
         {msg && <div className="text-sm font-mono text-primary" data-testid="settings-msg">{msg}</div>}
         <button className="btn-primary" onClick={save} disabled={saving || disabled} data-testid="settings-save">
