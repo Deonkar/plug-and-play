@@ -118,7 +118,7 @@ export default function Landing() {
       </section>
 
       {/* BY THE NUMBERS — static, calm, no more marquee */}
-      <section className="border-y border-border bg-black/40">
+      <section className="border-y border-border bg-muted/40">
         <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 divide-x divide-border">
           {[
             { k: "install time", v: "< 5 min", sub: "one command" },
@@ -128,7 +128,7 @@ export default function Landing() {
           ].map((s) => (
             <div key={s.k} className="px-6 md:px-8 py-6 text-center">
               <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-2">{s.k}</div>
-              <div className="font-display font-black text-3xl md:text-4xl text-white leading-none">{s.v}</div>
+              <div className="font-display font-black text-3xl md:text-4xl text-foreground leading-none">{s.v}</div>
               <div className="text-[11px] font-mono text-muted-foreground mt-1">{s.sub}</div>
             </div>
           ))}

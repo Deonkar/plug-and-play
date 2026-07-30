@@ -112,3 +112,30 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 
 ### Chat widget
 - ✅ **Resizable panel** — grip handle top-left corner, drag to resize (min 320×420, max 720×900), size persisted to localStorage
+
+## Update — Session 8 (Jan 2026) — About / Contact / Pricing + Theme + Bug Fix
+### Bug fix (verified by testing agent — iteration_2)
+- ✅ **Cursor artifact removed** — `CursorGlow.jsx` no longer renders the mix-blend-difference 8×8 dot. Only the ambient radial-gradient trails the cursor.
+
+### New pages (public marketing)
+- ✅ `/about` — founder bio, snapshot, socials, "Why this exists" narrative (**PLACEHOLDER** personal info — user to edit)
+- ✅ `/contact` — full form (name/email/company/message) → `POST /api/public/contact` → stored in `contact_submissions`
+- ✅ `/pricing` — coming-soon page with waitlist email capture (`POST /api/public/waitlist`) and 3-tier preview cards
+
+### Backend
+- ✅ `POST /api/public/contact` and `POST /api/public/waitlist` (unauthenticated)
+- ✅ `GET /api/admin/contact` and `GET /api/admin/waitlist` (admin only)
+- ✅ `maybe_monthly_reset()` runs on every /api/chat — zeros `token_used` when calendar month rolls; stores `token_reset_month = YYYY-MM`
+- ✅ `maybe_quota_alert()` fires a Slack ping (once per month) when a user crosses 80% of their `token_limit`; sets `quota_alert_sent`
+
+### Theme
+- ✅ `ThemeProvider` context + `ThemeToggle` (sun/moon) — light/dark modes with CSS variables via `[data-theme]`
+- ✅ Toggle placed in marketing nav (desktop + mobile), dashboard sidebar, and chat widget header
+- ✅ Preference persisted to `localStorage.cos_theme`
+
+### Polish
+- ✅ CTAs renamed: "Start free" / "Create your workspace" → "Register now" across landing, About, How
+- ✅ PLUG-IN READY tag now animated (framer spring + pulsing dot) and z-20; visible on both themes
+- ✅ Footer rebuilt — 4-column grid (Product / Developers / Company + brand block with socials)
+- ✅ `.btn-primary`, `.btn-ghost`, `.input-tech`, `.side-item` refactored to use CSS variables (proper light-mode contrast)
+- ✅ "By the numbers" strip uses `bg-muted/40` + `text-foreground` (theme-aware)
