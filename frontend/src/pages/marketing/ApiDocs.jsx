@@ -3,6 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { Copy, Check, Lock } from "lucide-react";
 import MarketingLayout from "../../components/marketing/MarketingLayout";
 import { useAuth } from "../../lib/auth";
+import { safeHtml } from "../../lib/sanitize";
 
 const SECTIONS = [
   {
@@ -194,7 +195,7 @@ export default function ApiDocs() {
             {SECTIONS.map((s) => (
               <li key={s.id}>
                 <a href={`#${s.id}`} className="text-muted-foreground hover:text-primary transition-colors block py-1" data-testid={`toc-${s.id}`}
-                  dangerouslySetInnerHTML={{__html: s.label}} />
+                  dangerouslySetInnerHTML={safeHtml(s.label)} />
               </li>
             ))}
           </ul>
@@ -205,9 +206,9 @@ export default function ApiDocs() {
             <div key={s.id} id={s.id} className="scroll-mt-24">
               <div className="flex items-baseline gap-3 mb-3">
                 <div className="w-1.5 h-1.5 bg-primary" />
-                <h2 className="font-display font-black text-3xl" dangerouslySetInnerHTML={{__html: s.label}} />
+                <h2 className="font-display font-black text-3xl" dangerouslySetInnerHTML={safeHtml(s.label)} />
               </div>
-              <p className="text-sm text-muted-foreground max-w-2xl mb-6" dangerouslySetInnerHTML={{__html: s.intro}} />
+              <p className="text-sm text-muted-foreground max-w-2xl mb-6" dangerouslySetInnerHTML={safeHtml(s.intro)} />
               <div className="space-y-3">
                 {s.endpoints.map((e, i) => <Endpoint key={i} e={e} />)}
               </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { Sparkles, Send, MessageSquare, X, Play } from "lucide-react";
+import { safeHtml } from "../../lib/sanitize";
 
 /**
  * Hero-sized looping demo: a fake CRM in a browser frame with the Company/OS chatbot
@@ -219,10 +220,10 @@ export default function HeroDemo() {
                       className="border border-white/10 bg-white/[0.03] p-2.5">
                       {ASSISTANT_LINES.slice(0, asstIdx).map((ln, i) => (
                         <div key={i} className="text-[11px] leading-snug text-white"
-                          dangerouslySetInnerHTML={{ __html: ln
+                          dangerouslySetInnerHTML={safeHtml(ln
                             .replace(/\*\*(.+?)\*\*/g, "<b class='text-primary'>$1</b>")
                             .replace(/▸/g, "<span class='text-primary'>▸</span>")
-                          }} />
+                          )} />
                       ))}
                     </motion.div>
                   )}

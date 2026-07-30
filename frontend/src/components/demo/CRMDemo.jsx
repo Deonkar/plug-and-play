@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Send, MessageSquare, X, Search, Bell, Filter, MoreHorizontal } from "lucide-react";
+import { safeHtml } from "../../lib/sanitize";
 
 /**
  * Generic "SalesHub" CRM mock (light-blue theme) — deliberately unlike Company/OS
@@ -223,10 +224,10 @@ export default function CRMDemo() {
                         className="border border-white/10 bg-white/[0.03] p-2.5">
                         {SCRIPT_ASSISTANT.slice(0, assistantIdx).map((ln, i) => (
                           <div key={i} className="text-[11px] leading-snug text-white"
-                            dangerouslySetInnerHTML={{ __html: ln
+                            dangerouslySetInnerHTML={safeHtml(ln
                               .replace(/\*\*(.+?)\*\*/g, "<b class='text-primary'>$1</b>")
                               .replace(/▸/g, "<span class='text-primary'>▸</span>")
-                            }} />
+                            )} />
                         ))}
                       </motion.div>
                     )}

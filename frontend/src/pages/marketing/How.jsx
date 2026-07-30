@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { GitBranch, FileCode, Bot, ArrowRight, Zap, ShieldCheck, Slack, Mic } from "lucide-react";
 import MarketingLayout from "../../components/marketing/MarketingLayout";
+import { safeHtml } from "../../lib/sanitize";
 
 export default function How() {
   return (
@@ -85,13 +86,13 @@ function BigStep({ n, icon: Icon, title, body, bullets }) {
         <span className="font-mono text-xs text-muted-foreground">{n}</span>
         <Icon className="w-5 h-5 text-primary" />
       </div>
-      <h3 className="font-display font-bold text-2xl mb-3" dangerouslySetInnerHTML={{__html: title}} />
+      <h3 className="font-display font-bold text-2xl mb-3" dangerouslySetInnerHTML={safeHtml(title)} />
       <p className="text-sm text-muted-foreground leading-relaxed mb-4">{body}</p>
       <ul className="space-y-1.5 text-sm">
         {bullets.map((b, i) => (
           <li key={i} className="flex gap-2 text-muted-foreground">
             <span className="text-primary shrink-0">›</span>
-            <span dangerouslySetInnerHTML={{__html: b}} />
+            <span dangerouslySetInnerHTML={safeHtml(b)} />
           </li>
         ))}
       </ul>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Terminal, Users, FileText, BarChart3, Settings } from "lucide-react";
 import BrowserFrame from "./BrowserFrame";
+import { safeHtml } from "../../lib/sanitize";
 
 /**
  * Admin console demo that shows what admins ACTUALLY use the console for:
@@ -69,7 +70,7 @@ export default function AdminDemo() {
               <div className="flex items-center gap-2 mb-1.5">
                 <s.icon className={`w-3.5 h-3.5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
                 <div className={`font-mono text-[10px] uppercase tracking-widest ${isActive ? "text-primary" : "text-muted-foreground"}`}
-                  dangerouslySetInnerHTML={{__html: `0${i+1} — ${s.label}`}} />
+                  dangerouslySetInnerHTML={safeHtml(`0${i+1} — ${s.label}`)} />
               </div>
               <div className={`text-sm leading-relaxed ${isActive ? "text-foreground" : "text-muted-foreground"}`}>{s.caption}</div>
             </motion.div>
@@ -99,7 +100,7 @@ export default function AdminDemo() {
 
             <div className="col-span-9 p-5 relative overflow-hidden">
               <div className="mb-4">
-                <div className="font-mono text-[10px] uppercase tracking-widest text-primary" dangerouslySetInnerHTML={{__html: `/// ${active.label}`}} />
+                <div className="font-mono text-[10px] uppercase tracking-widest text-primary" dangerouslySetInnerHTML={safeHtml(`/// ${active.label}`)} />
                 <div className="font-display font-black text-2xl">
                   {active.key === "analytics" && "Insights"}
                   {active.key === "quotas" && "Team & quotas"}

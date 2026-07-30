@@ -1,5 +1,6 @@
 import { Bot, Database, Lock, GitBranch, Server, Braces, Palette, Cpu, Mic, LineChart } from "lucide-react";
 import MarketingLayout from "../../components/marketing/MarketingLayout";
+import { safeHtml } from "../../lib/sanitize";
 
 const GROUPS = [
   {
@@ -56,7 +57,7 @@ export default function Stack() {
           <div key={g.label}>
             <div className="flex items-baseline gap-4 mb-6">
               <div className="w-1.5 h-1.5 bg-primary" />
-              <h2 className="font-display font-black text-3xl" dangerouslySetInnerHTML={{__html: g.label}} />
+              <h2 className="font-display font-black text-3xl" dangerouslySetInnerHTML={safeHtml(g.label)} />
             </div>
             <div className="grid md:grid-cols-2 gap-3">
               {g.items.map((it) => {

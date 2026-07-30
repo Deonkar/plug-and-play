@@ -1040,6 +1040,7 @@ async def public_playground(inp: PlaygroundIn, request: Request):
         session_id=f"playground-{ip}-{session_id}",
         system_message=system_prompt,
     ).with_model("anthropic", "claude-sonnet-4-6")
+    answer = None
     try:
         answer = await chat.send_message(UserMessage(text=message))
     except Exception as e:
