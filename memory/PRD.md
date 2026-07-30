@@ -139,3 +139,16 @@ Iteration 1: 100% pass on backend + frontend + integration (see /app/test_report
 - ✅ Footer rebuilt — 4-column grid (Product / Developers / Company + brand block with socials)
 - ✅ `.btn-primary`, `.btn-ghost`, `.input-tech`, `.side-item` refactored to use CSS variables (proper light-mode contrast)
 - ✅ "By the numbers" strip uses `bg-muted/40` + `text-foreground` (theme-aware)
+
+## Update — Session 9 (Jan 2026) — Apple-Style Landing + Light-Mode Contrast Fix
+### Bug fix (testing agent iteration_3 — 100% pass)
+- ✅ **Light-mode readability** — added `.demo-dark` class in `index.css` that pins CSS vars to dark values regardless of parent theme. Demo panels + ProductMoment + narration columns now render as a dark island in light mode (WCAG-AA contrast confirmed).
+
+### Landing rewrite — Apple composition
+- ✅ Huge centered hero (< text-9xl) with one eyebrow, one headline, one subhead, two CTAs
+- ✅ **ProductMoment** — the chat panel alone, floating with ambient glow + PLUG-IN READY tag + stat strip. No side content — product speaks for itself
+- ✅ Numbers strip: 4 giant standalone stats, no boxes, no borders — pure whitespace
+- ✅ Three pillars section (Contextual / Scoped / Plug-and-play) with a tiny orange bar above each — restraint on eyebrows
+- ✅ Demo section is a self-contained "dark island" — CRM + Admin reels with narration
+- ✅ **Silent closer** — massive centered "Your CRM is loud. Make it answer back." with credentials line
+- ✅ py-32/py-40 vertical padding between sections (double the earlier density)
