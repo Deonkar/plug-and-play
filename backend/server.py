@@ -109,6 +109,17 @@ class SettingsIn(BaseModel):
     slack_webhook_url: Optional[str] = None
 
 
+class ContactIn(BaseModel):
+    name: str
+    email: EmailStr
+    company: Optional[str] = ""
+    message: str
+
+
+class WaitlistIn(BaseModel):
+    email: EmailStr
+
+
 class IngestFile(BaseModel):
     path: str
     content: str
@@ -432,7 +443,8 @@ async def chat_endpoint(inp: ChatIn, user=Depends(current_user)):
     session_id = inp.session_id or str(uuid.uuid4())
     ck = cache_key(company_id, user["role"], user["id"], message)
 
-    # 0) Enforce per-user token quota (0 = unlimited)
+    # 0) Monthly reset check + enforce per-user token quota (0 = unlimited)
+    user = await maybe_monthly_reset(user)
     token_limit = int(user.get("token_limit") or 0)
     token_used = int(user.get("token_used") or 0)
     if token_limit > 0 and token_used >= token_limit:
@@ -511,6 +523,11 @@ async def chat_endpoint(inp: ChatIn, user=Depends(current_user)):
         {"id": user["id"]},
         {"$inc": {"token_used": int(tokens_in + tokens_out)}},
     )
+
+    # 6) Fire quota alert at 80% (once per month)
+    fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0})
+    if fresh:
+        await maybe_quota_alert(fresh, company_id)
 
     return {
         "answer": answer,
@@ -932,6 +949,75 @@ async def shutdown():
 @api.get("/")
 async def root():
     return {"service": "Company OS", "ok": True}
+
+
+# --------- Public: Contact & Waitlist ---------
+@api.post("/public/contact")
+async def submit_contact(inp: ContactIn):
+    doc = {
+        "id": str(uuid.uuid4()),
+        "name": inp.name,
+        "email": inp.email.lower(),
+        "company": inp.company or "",
+        "message": inp.message,
+        "created_at": now_iso(),
+        "read": False,
+    }
+    await db.contact_submissions.insert_one(doc)
+    return {"ok": True}
+
+
+@api.post("/public/waitlist")
+async def join_waitlist(inp: WaitlistIn):
+    email = inp.email.lower()
+    await db.waitlist.update_one(
+        {"email": email},
+        {"$setOnInsert": {"email": email, "created_at": now_iso()}},
+        upsert=True,
+    )
+    return {"ok": True}
+
+
+@api.get("/admin/contact")
+async def list_contact(user=Depends(require_role("super_admin", "admin"))):
+    docs = await db.contact_submissions.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return docs
+
+
+@api.get("/admin/waitlist")
+async def list_waitlist(user=Depends(require_role("super_admin", "admin"))):
+    docs = await db.waitlist.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return docs
+
+
+# --------- Monthly reset + 80% quota alert ---------
+async def maybe_monthly_reset(u: dict):
+    """If user's last_reset month != current month, zero their token_used."""
+    now = datetime.now(timezone.utc)
+    key = f"{now.year}-{now.month:02d}"
+    if (u.get("token_reset_month") or "") != key:
+        await db.users.update_one(
+            {"id": u["id"]},
+            {"$set": {"token_used": 0, "token_reset_month": key, "quota_alert_sent": False}},
+        )
+        u["token_used"] = 0
+        u["token_reset_month"] = key
+        u["quota_alert_sent"] = False
+    return u
+
+
+async def maybe_quota_alert(u: dict, company_id: str):
+    limit = int(u.get("token_limit") or 0)
+    used = int(u.get("token_used") or 0)
+    if limit <= 0:
+        return
+    if used >= limit * 0.8 and not u.get("quota_alert_sent"):
+        await db.users.update_one({"id": u["id"]}, {"$set": {"quota_alert_sent": True}})
+        pct = int((used / limit) * 100)
+        await send_slack(
+            company_id,
+            f":warning: Quota alert — *{u['name']}* is at {pct}% of monthly token cap ({used:,}/{limit:,}).",
+        )
 
 
 # --------- Voice transcription (STT) ---------

@@ -8,6 +8,7 @@ import {
 import ChatWidget from "./ChatWidget";
 import Badge from "./ui/pill";
 import Logo from "./Logo";
+import ThemeToggle from "./ThemeToggle";
 
 export default function AppShell() {
   const { user, logout } = useAuth();
@@ -41,8 +42,11 @@ export default function AppShell() {
   const footer = (
     <div className="p-3 border-t border-border">
       <div className="text-xs mb-2 truncate" data-testid="sidebar-user">{user?.name}</div>
-      <Badge>{user?.role}</Badge>
-      <button onClick={doLogout} className="btn-ghost w-full flex items-center gap-2 text-xs mt-3" data-testid="btn-logout">
+      <div className="flex items-center gap-2 mb-3">
+        <Badge>{user?.role}</Badge>
+        <ThemeToggle className="ml-auto" />
+      </div>
+      <button onClick={doLogout} className="btn-ghost w-full flex items-center gap-2 text-xs" data-testid="btn-logout">
         <LogOut className="w-3 h-3"/> Sign out
       </button>
     </div>

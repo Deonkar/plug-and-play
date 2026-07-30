@@ -40,7 +40,7 @@ export default function Landing() {
             className="flex flex-wrap gap-3"
           >
             <Link to="/register" data-testid="hero-cta-primary" className="btn-primary flex items-center gap-2">
-              Start free <ArrowRight className="w-4 h-4" />
+              Register now <ArrowRight className="w-4 h-4" />
             </Link>
             <Link to="/how" data-testid="hero-cta-how" className="btn-ghost">See how it works</Link>
           </motion.div>
@@ -104,9 +104,16 @@ export default function Landing() {
           </div>
 
           {/* Floating "plug-in" tag */}
-          <div className="absolute -top-3 -right-3 bg-primary text-white text-[10px] font-mono uppercase tracking-widest px-2 py-1 border border-primary/60 rotate-2">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, rotate: 0 }}
+            animate={{ opacity: 1, scale: 1, rotate: 2 }}
+            transition={{ delay: 0.6, type: "spring", stiffness: 300 }}
+            className="absolute -top-4 -right-4 md:-top-3 md:-right-3 bg-primary text-white text-[10px] font-mono uppercase tracking-widest px-2.5 py-1.5 border border-primary/60 shadow-[0_8px_20px_-4px_rgba(255,80,20,0.4)] z-20"
+            data-testid="plugin-ready-tag"
+          >
+            <span className="inline-block w-1.5 h-1.5 bg-white rounded-full mr-1.5 animate-pulse" />
             plug-in ready
-          </div>
+          </motion.div>
         </motion.div>
       </section>
 
@@ -207,7 +214,7 @@ export default function Landing() {
             </p>
             <div className="flex flex-wrap gap-3">
               <Link to="/register" className="btn-primary flex items-center gap-2" data-testid="footer-cta-register">
-                Create your workspace <ArrowRight className="w-4 h-4" />
+                Register now <ArrowRight className="w-4 h-4" />
               </Link>
               <Link to="/login" className="btn-ghost" data-testid="footer-cta-login">Sign in to demo</Link>
             </div>

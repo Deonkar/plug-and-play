@@ -70,7 +70,7 @@ export default function How() {
           <h3 className="font-display font-black text-3xl md:text-4xl mb-4">Ready to install?</h3>
           <p className="text-muted-foreground mb-6 max-w-lg">Register a workspace and you'll land on the demo tenant with seeded users, leads and context docs.</p>
           <Link to="/register" className="btn-primary flex items-center gap-2 w-fit" data-testid="how-cta-register">
-            Start free <ArrowRight className="w-4 h-4"/>
+            Register now <ArrowRight className="w-4 h-4"/>
           </Link>
         </div>
       </section>

@@ -2,21 +2,17 @@ import { useEffect, useRef } from "react";
 
 /**
  * Subtle cursor-follower glow with delay/inertia.
- * Renders a fixed orange radial gradient that trails the cursor.
+ * Renders a fixed radial gradient that trails the cursor — NO visible dot/character.
  */
 export default function CursorGlow() {
-  const dotRef = useRef(null);
   const glowRef = useRef(null);
-  const pos = useRef({ x: -200, y: -200 });
-  const target = useRef({ x: -200, y: -200 });
+  const pos = useRef({ x: -400, y: -400 });
+  const target = useRef({ x: -400, y: -400 });
 
   useEffect(() => {
     const onMove = (e) => {
       target.current.x = e.clientX;
       target.current.y = e.clientY;
-      if (dotRef.current) {
-        dotRef.current.style.transform = `translate(${e.clientX - 4}px, ${e.clientY - 4}px)`;
-      }
     };
     window.addEventListener("mousemove", onMove);
     let raf;
@@ -33,14 +29,11 @@ export default function CursorGlow() {
   }, []);
 
   return (
-    <>
-      <div ref={glowRef}
-        className="pointer-events-none fixed top-0 left-0 z-0 w-[400px] h-[400px]"
-        style={{ background: "radial-gradient(circle at center, hsla(15,100%,50%,0.18), transparent 60%)" }}
-      />
-      <div ref={dotRef}
-        className="pointer-events-none fixed top-0 left-0 z-[100] w-2 h-2 bg-primary mix-blend-difference hidden md:block"
-      />
-    </>
+    <div
+      ref={glowRef}
+      className="pointer-events-none fixed top-0 left-0 z-0 w-[400px] h-[400px] hidden md:block"
+      style={{ background: "radial-gradient(circle at center, hsla(15,100%,50%,0.14), transparent 60%)" }}
+      aria-hidden="true"
+    />
   );
 }

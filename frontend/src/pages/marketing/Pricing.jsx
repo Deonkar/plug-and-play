@@ -1,0 +1,96 @@
+import { useState } from "react";
+import { Check, Clock, Sparkles } from "lucide-react";
+import MarketingLayout from "../../components/marketing/MarketingLayout";
+import api from "../../lib/api";
+
+export default function Pricing() {
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState({ loading: false, ok: false, err: "" });
+
+  const join = async (e) => {
+    e.preventDefault();
+    setState({ loading: true, ok: false, err: "" });
+    try {
+      await api.post("/public/waitlist", { email });
+      setState({ loading: false, ok: true, err: "" });
+      setEmail("");
+    } catch (er) {
+      setState({ loading: false, ok: false, err: er.response?.data?.detail || "Something went wrong" });
+    }
+  };
+
+  const tiers = [
+    { name: "Solo", price: "Free", desc: "For teams testing the waters. Multi-tenant demo tenant, seeded data.", features: ["1 workspace", "Up to 3 seats", "Emergent LLM key", "Community support"] },
+    { name: "Team", price: "TBD", desc: "For growing sales/ops teams that need real quotas and Slack alerts.", features: ["Unlimited context docs", "Per-user token quotas", "Slack escalation alerts", "Priority support"], featured: true },
+    { name: "Enterprise", price: "Talk", desc: "For companies embedding the widget across many internal tools.", features: ["BYO LLM key", "SSO / SCIM (roadmap)", "Custom retention policies", "White-glove onboarding"] },
+  ];
+
+  return (
+    <MarketingLayout>
+      <section className="px-6 md:px-16 pt-16 pb-16">
+        <div className="font-mono text-xs uppercase text-primary tracking-widest mb-3 flex items-center gap-2">
+          <Clock className="w-3 h-3"/> /// pricing · coming soon
+        </div>
+        <h1 className="font-display font-black text-5xl md:text-6xl leading-[0.95] max-w-3xl">
+          Pricing is <span className="text-primary">being finalised.</span>
+        </h1>
+        <p className="text-muted-foreground max-w-2xl mt-6 text-lg leading-relaxed">
+          The MVP is free while I gather feedback. Once real usage patterns are clear I'll switch to
+          fair, usage-scaled pricing. Join the waitlist to lock in the launch discount.
+        </p>
+      </section>
+
+      {/* Waitlist */}
+      <section className="px-6 md:px-16 pb-16">
+        <div className="border border-primary p-6 md:p-8 bg-gradient-to-br from-primary/10 to-transparent max-w-2xl">
+          <div className="flex items-center gap-2 mb-3 font-mono text-[10px] uppercase tracking-widest text-primary">
+            <Sparkles className="w-3 h-3"/> waitlist · early-access
+          </div>
+          <h2 className="font-display font-black text-2xl md:text-3xl mb-4">Get pinged when pricing goes live.</h2>
+          <form onSubmit={join} className="flex flex-col md:flex-row gap-2" data-testid="waitlist-form">
+            <input
+              type="email" required value={email} onChange={(e)=>setEmail(e.target.value)}
+              placeholder="you@company.com"
+              className="input-tech flex-1"
+              data-testid="waitlist-email"
+            />
+            <button disabled={state.loading} className="btn-primary" data-testid="waitlist-submit">
+              {state.loading ? "..." : state.ok ? "Added ✓" : "Join waitlist"}
+            </button>
+          </form>
+          {state.ok && (
+            <div className="flex items-center gap-2 text-emerald-400 text-sm mt-3" data-testid="waitlist-success">
+              <Check className="w-4 h-4"/> You're on the list — I'll email you when we launch.
+            </div>
+          )}
+          {state.err && <div className="text-primary text-xs font-mono mt-3" data-testid="waitlist-error">! {state.err}</div>}
+          <p className="text-[11px] font-mono text-muted-foreground mt-3">No spam. Unsubscribe any time.</p>
+        </div>
+      </section>
+
+      {/* Tiers preview */}
+      <section className="px-6 md:px-16 py-16 border-t border-border">
+        <div className="mb-8">
+          <div className="font-mono text-xs uppercase text-muted-foreground tracking-widest mb-2">/// direction we're headed</div>
+          <h2 className="font-display font-black text-3xl md:text-4xl">Preview of the tiers.</h2>
+        </div>
+        <div className="grid md:grid-cols-3 gap-4">
+          {tiers.map((t) => (
+            <div key={t.name} className={`border p-6 bg-card relative ${t.featured ? "border-primary" : "border-border"}`}>
+              {t.featured && <div className="absolute -top-3 left-6 bg-primary text-white text-[10px] font-mono uppercase tracking-widest px-2 py-0.5">most popular</div>}
+              <div className="font-display font-bold text-lg mb-1">{t.name}</div>
+              <div className="font-display font-black text-4xl mb-3">{t.price}<span className="text-sm text-muted-foreground font-normal">/mo</span></div>
+              <p className="text-sm text-muted-foreground mb-5 min-h-[48px]">{t.desc}</p>
+              <ul className="space-y-2 text-sm mb-6">
+                {t.features.map((f) => (
+                  <li key={f} className="flex gap-2 text-muted-foreground"><span className="text-primary shrink-0">›</span>{f}</li>
+                ))}
+              </ul>
+              <div className="text-[11px] font-mono text-muted-foreground">final pricing TBA · early users get 50% off</div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </MarketingLayout>
+  );
+}

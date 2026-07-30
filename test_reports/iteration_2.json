@@ -1,0 +1,32 @@
+{
+  "summary": "Session 8 regression + primary cursor-bug verification. All 7 backend tests pass (contact/waitlist endpoints, chat monthly reset, chat quota 429, admin lists). Frontend verified: cursor bug is FIXED (no 8x8 dot present — only radial-gradient glow div renders), Register-now CTA present 3x, no 'Start free' anywhere, plug-in-ready tag visible with data-testid, theme toggle flips data-theme (dark<->light) and persists via localStorage cos_theme across reload, /about renders with correct headings and social links, /pricing renders with 'Pricing is being finalised.' + waitlist form (submit shows 'Added ✓') + 3 tier cards, /contact submits successfully with [data-testid=contact-success] visible showing 'Message received', chat widget on /app has [data-testid=chat-theme-toggle] visible, chat returns valid Claude answer for 'what urgent tasks?' (mentions Northwind/task-01), /reference correctly redirects unauthenticated users to /login?next=/reference.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Marketing nav (light theme)", "issues": ["'Sign in' nav button has white/near-white text on white background in light mode — very low contrast (see landing screenshot after theme toggle)","Secondary CTA 'See how it works' also loses visibility in light theme (white text/border on white bg)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Fix light-theme contrast for MarketingLayout nav Sign-in button and secondary landing CTA 'See how it works'. Currently both render white text on white background when data-theme='light'."
+  ],
+  "critical_code_review_comments": [
+    "CursorGlow.jsx is now clean — single ambient gradient div, no dot/mix-blend-difference. Fix verified.",
+    "server.py is 1059 lines — nearing the 700-line guideline threshold; consider splitting into modules (auth, chat, admin, public) as feature-set grows.",
+    "/api/public/contact and /api/public/waitlist have no rate limiting or captcha — public endpoints, spam-vulnerable in production.",
+    "Contact form inputs lack `name` attributes on the DOM (only labels + placeholders). Consider adding for a11y and easier E2E targeting."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py (new)"],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% of tested flows"},
+  "test_credentials": "admin@acme.demo/admin123, alice@acme.demo/agent123 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Test-created contact/waitlist docs are cleaned up in each test (email suffixed with timestamp).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "backend_test.py covers: TestContact, TestWaitlist, TestChatAndQuota (basic, 429 quota, monthly reset). Chat quota test mutates alice's token_limit/used and restores. Monthly-reset test forces token_reset_month=2020-01 and asserts it advances to current YYYY-MM after chat call. If admin's chat call is slow, timeout is 60s.",
+  "rca_of_the_issue": "Original bug 'a comes in front of my cursor': CursorGlow.jsx previously rendered a tiny 8x8px div with mix-blend-difference and a solid orange background, which appeared as a small colored square/character near the cursor position. Fix removed that dot; only the ambient radial-gradient div (400x400, hidden on mobile) remains. Verified via DOM scan: 0 fixed-position colored elements smaller than 20px exist on the landing page, and exactly 1 pointer-events-none fixed glow div renders."
+}

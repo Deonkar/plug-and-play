@@ -2,15 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { MessageSquare, X, Send, Sparkles, Copy, Check, Minimize2, Zap, Mic, Square, GripVertical } from "lucide-react";
+import { MessageSquare, X, Send, Sparkles, Copy, Check, Minimize2, Zap, Mic, Square, GripVertical, Sun, Moon } from "lucide-react";
 import api from "../lib/api";
 import { cn } from "@/lib/utils";
+import { useTheme } from "../lib/theme";
 
 const DEFAULT_SIZE = { w: 420, h: 620 };
 const MIN_SIZE = { w: 320, h: 420 };
 const MAX_SIZE = { w: 720, h: 900 };
 
 export default function ChatWidget() {
+  const { theme, toggle: toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -224,6 +226,9 @@ export default function ChatWidget() {
                 </div>
               </div>
               <div className="flex items-center gap-1">
+                <button onClick={toggleTheme} className="text-muted-foreground hover:text-white p-1.5" data-testid="chat-theme-toggle" title="Toggle theme">
+                  {theme === "dark" ? <Sun className="w-3.5 h-3.5"/> : <Moon className="w-3.5 h-3.5"/>}
+                </button>
                 {messages.length > 0 && (
                   <button onClick={clear} className="text-muted-foreground hover:text-white p-1.5" data-testid="chat-clear" title="New chat">
                     <Minimize2 className="w-3.5 h-3.5" />
